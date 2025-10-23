@@ -1,4 +1,3 @@
-
 export enum View {
   Home = 'home',
   Packages = 'packages',
@@ -69,5 +68,5 @@ export interface Visitor {
     visitDate: string;
     accessCode: string;
     qrUrl: string;
-    status: 'pending' | 'arrived' | 'departed';
+    status: 'pending' | 'arrived' | 'departed' | 'cancelled';
 }

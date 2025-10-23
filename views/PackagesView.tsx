@@ -23,31 +23,52 @@ const NewPackageRequestModal: React.FC<{
     onAddRequest: (data: { carrier: string; deliveryTime: string; }) => void;
 }> = ({ isOpen, onClose, onAddRequest }) => {
     const [carrier, setCarrier] = useState('');
+    const [deliveryDate, setDeliveryDate] = useState('');
     const [deliveryTime, setDeliveryTime] = useState('');
+
+    const formatDateTime = (dateStr: string, timeStr: string): string => {
+        if (!dateStr) return 'Fecha no especificada';
+        const date = new Date(`${dateStr}T${timeStr || '00:00:00'}`);
+        return new Intl.DateTimeFormat('es-MX', {
+            dateStyle: 'medium',
+            timeStyle: timeStr ? 'short' : undefined,
+        }).format(date);
+    };
+
+    const cleanup = () => {
+        setCarrier('');
+        setDeliveryDate('');
+        setDeliveryTime('');
+        onClose();
+    };
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        if (carrier.trim() && deliveryTime.trim()) {
-            onAddRequest({ carrier, deliveryTime });
-            setCarrier('');
-            setDeliveryTime('');
-            onClose();
+        if (carrier.trim() && deliveryDate.trim()) {
+            onAddRequest({ carrier, deliveryTime: formatDateTime(deliveryDate, deliveryTime) });
+            cleanup();
         }
     };
     
     return (
-        <Modal isOpen={isOpen} onClose={onClose} title="Solicitar Ayuda para Paquete">
+        <Modal isOpen={isOpen} onClose={cleanup} title="Solicitar Ayuda para Paquete">
             <form onSubmit={handleSubmit}>
                 <div className="mb-4">
-                    <label htmlFor="carrier" className="block text-sm font-medium text-gray-700">Transportista</label>
-                    <input type="text" id="carrier" value={carrier} onChange={e => setCarrier(e.target.value)} required placeholder="Ej: Amazon, Mercado Libre" className="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary bg-gray-100 text-gray-900" />
+                    <label htmlFor="carrier_name" className="block text-sm font-medium text-gray-700">Transportista</label>
+                    <input type="text" id="carrier_name" name="carrier_name" value={carrier} onChange={e => setCarrier(e.target.value)} required placeholder="Ej: Amazon, Mercado Libre" className="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary bg-gray-100 text-gray-900" autoComplete="off" />
                 </div>
-                <div className="mb-4">
-                    <label htmlFor="deliveryTime" className="block text-sm font-medium text-gray-700">Horario de entrega estimado</label>
-                    <input type="text" id="deliveryTime" value={deliveryTime} onChange={e => setDeliveryTime(e.target.value)} required placeholder="Ej: Hoy, 3-5 PM" className="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary bg-gray-100 text-gray-900" />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                     <div>
+                        <label htmlFor="deliveryDate" className="block text-sm font-medium text-gray-700">Fecha de entrega</label>
+                        <input type="date" id="deliveryDate" value={deliveryDate} onChange={e => setDeliveryDate(e.target.value)} required className="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary bg-gray-100 text-gray-900" />
+                    </div>
+                    <div>
+                        <label htmlFor="deliveryTime" className="block text-sm font-medium text-gray-700">Hora estimada (Opcional)</label>
+                        <input type="time" id="deliveryTime" value={deliveryTime} onChange={e => setDeliveryTime(e.target.value)} className="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary bg-gray-100 text-gray-900" />
+                    </div>
                 </div>
                 <div className="mt-6 flex justify-end">
-                    <button type="button" onClick={onClose} className="mr-2 px-4 py-2 bg-gray-200 text-gray-800 font-semibold rounded-md hover:bg-gray-300">Cancelar</button>
+                    <button type="button" onClick={cleanup} className="mr-2 px-4 py-2 bg-gray-200 text-gray-800 font-semibold rounded-md hover:bg-gray-300">Cancelar</button>
                     <button type="submit" className="px-4 py-2 bg-primary text-white font-semibold rounded-md hover:bg-primary-focus">Publicar Solicitud</button>
                 </div>
             </form>
