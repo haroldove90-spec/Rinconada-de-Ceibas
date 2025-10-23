@@ -1,17 +1,18 @@
-
 import { GoogleGenAI } from "@google/genai";
 
-// Ensure the API key is available in the environment variables
+// The API key is injected by the environment.
 const apiKey = process.env.API_KEY;
-if (!apiKey) {
-    console.error("API_KEY environment variable not set.");
+
+let ai: GoogleGenAI | null = null;
+if (apiKey) {
+    ai = new GoogleGenAI({ apiKey });
+} else {
+    console.warn("API_KEY is not set. AI features will be disabled.");
 }
 
-const ai = new GoogleGenAI({ apiKey: apiKey! });
-
 export const generateAnnouncement = async (prompt: string): Promise<string> => {
-    if (!apiKey) {
-        return "Error: API key is not configured. Please set the API_KEY environment variable.";
+    if (!ai) {
+        return "La función de IA no está disponible. Por favor, configura la API key.";
     }
     try {
         const response = await ai.models.generateContent({
