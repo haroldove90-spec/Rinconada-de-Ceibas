@@ -21,6 +21,8 @@ export interface Post {
   timestamp: string;
   likes: number;
   comments: Comment[];
+  imageUrl?: string;
+  videoUrl?: string;
 }
 
 export interface Comment {

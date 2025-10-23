@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Visitor } from '../types';
 import Modal from '../components/Modal';
@@ -48,11 +47,11 @@ const NewVisitorModal: React.FC<{ isOpen: boolean, onClose: () => void, onAddVis
             <form onSubmit={handleSubmit}>
                 <div className="mb-4">
                     <label htmlFor="name" className="block text-sm font-medium text-gray-700">Nombre del Visitante</label>
-                    <input type="text" id="name" value={name} onChange={e => setName(e.target.value)} required className="mt-1 block w-full p-2 border rounded-md focus:ring-primary focus:border-primary" />
+                    <input type="text" id="name" value={name} onChange={e => setName(e.target.value)} required className="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary bg-gray-100 text-gray-900" />
                 </div>
                 <div className="mb-4">
                     <label htmlFor="date" className="block text-sm font-medium text-gray-700">Fecha y Hora Estimada</label>
-                    <input type="text" id="date" value={date} onChange={e => setDate(e.target.value)} required placeholder='Ej: Mañana, 4 PM' className="mt-1 block w-full p-2 border rounded-md focus:ring-primary focus:border-primary" />
+                    <input type="text" id="date" value={date} onChange={e => setDate(e.target.value)} required placeholder='Ej: Mañana, 4 PM' className="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary bg-gray-100 text-gray-900" />
                 </div>
                 <div className="mt-6 flex justify-end">
                     <button type="button" onClick={onClose} className="mr-2 px-4 py-2 bg-gray-200 rounded-md hover:bg-gray-300">Cancelar</button>

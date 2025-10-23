@@ -1,6 +1,6 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { Post, User } from '../types';
-import { HeartIcon, ChatBubbleLeftIcon } from '../components/icons/Icons';
+import { HeartIcon, ChatBubbleLeftIcon, PaperClipIcon, CameraIcon } from '../components/icons/Icons';
 import Modal from '../components/Modal';
 import { generateAnnouncement } from '../services/geminiService';
 
@@ -20,7 +20,8 @@ const initialPosts: Post[] = [
         likes: 15,
         comments: [
             { id: 'c1', author: mockUsers['user3'], content: '¡Gracias por el aviso!', timestamp: 'Hace 1 hora' }
-        ]
+        ],
+        imageUrl: 'https://picsum.photos/seed/fumigacion/600/400',
     },
     {
         id: 'post2',
@@ -46,7 +47,22 @@ const PostCard: React.FC<{ post: Post }> = ({ post }) => {
                     </div>
                 </div>
                 <p className="text-gray-700 mb-4 text-base leading-relaxed">{post.content}</p>
-                <div className="flex items-center text-gray-500 pt-3 border-t border-gray-100">
+
+                {post.imageUrl && (
+                    <div className="mt-4">
+                        <img src={post.imageUrl} alt="Contenido de la publicación" className="rounded-lg w-full max-h-96 object-cover" />
+                    </div>
+                )}
+                {post.videoUrl && (
+                    <div className="mt-4">
+                        <video controls className="rounded-lg w-full max-h-96">
+                            <source src={post.videoUrl} />
+                            Tu navegador no soporta el tag de video.
+                        </video>
+                    </div>
+                )}
+                
+                <div className="flex items-center text-gray-500 pt-3 border-t border-gray-100 mt-4">
                     <button onClick={() => setLiked(!liked)} className={`flex items-center mr-6 transition-colors duration-200 ${liked ? 'text-red-500' : 'hover:text-red-500'}`}>
                         <HeartIcon filled={liked} />
                         <span className="ml-2 text-sm font-medium">{post.likes + (liked ? 1 : 0)}</span>
@@ -74,14 +90,39 @@ const PostCard: React.FC<{ post: Post }> = ({ post }) => {
     );
 };
 
+const fileToBase64 = (file: File): Promise<string> =>
+    new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = (error) => reject(error);
+    });
+
 const NewPostModal: React.FC<{
     isOpen: boolean,
     onClose: () => void,
-    onAddPost: (content: string) => void
+    onAddPost: (postData: { content: string; imageUrl?: string; videoUrl?: string }) => void
 }> = ({ isOpen, onClose, onAddPost }) => {
-    const [content, setContent] = useState('');
-    const [aiPrompt, setAiPrompt] = useState('');
+    const [content, setContent] = useState(() => sessionStorage.getItem('newPostContent') || '');
+    const [aiPrompt, setAiPrompt] = useState(() => sessionStorage.getItem('newPostAiPrompt') || '');
     const [isGenerating, setIsGenerating] = useState(false);
+    const [mediaFile, setMediaFile] = useState<File | null>(null);
+    const [mediaPreview, setMediaPreview] = useState<string | null>(null);
+    const [mediaType, setMediaType] = useState<'image' | 'video' | null>(null);
+    const fileInputRef = React.useRef<HTMLInputElement>(null);
+    const cameraInputRef = React.useRef<HTMLInputElement>(null);
+
+    useEffect(() => {
+        if (isOpen) {
+            sessionStorage.setItem('newPostContent', content);
+        }
+    }, [content, isOpen]);
+
+    useEffect(() => {
+        if (isOpen) {
+            sessionStorage.setItem('newPostAiPrompt', aiPrompt);
+        }
+    }, [aiPrompt, isOpen]);
 
     const handleGenerate = async () => {
         if (!aiPrompt) return;
@@ -91,18 +132,58 @@ const NewPostModal: React.FC<{
         setIsGenerating(false);
     };
 
+    const removeMedia = useCallback(() => {
+        setMediaFile(null);
+        setMediaPreview(null);
+        setMediaType(null);
+        if (fileInputRef.current) {
+            fileInputRef.current.value = "";
+        }
+        if (cameraInputRef.current) {
+            cameraInputRef.current.value = "";
+        }
+    }, []);
+
+    const cleanup = useCallback(() => {
+        setContent('');
+        setAiPrompt('');
+        removeMedia();
+        sessionStorage.removeItem('newPostContent');
+        sessionStorage.removeItem('newPostAiPrompt');
+        onClose();
+    }, [onClose, removeMedia]);
+    
+    const handleMediaChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (file) {
+            removeMedia(); // Clear previous media
+            setMediaFile(file);
+            setMediaType(file.type.startsWith('image/') ? 'image' : 'video');
+            try {
+                const base64Data = await fileToBase64(file);
+                setMediaPreview(base64Data);
+            } catch (error) {
+                console.error("Error converting file to Base64:", error);
+            }
+        }
+    };
+
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        if (content.trim()) {
-            onAddPost(content);
-            setContent('');
-            setAiPrompt('');
-            onClose();
+        if (content.trim() || mediaFile) {
+            const postData: { content: string; imageUrl?: string; videoUrl?: string } = { content };
+             if (mediaType === 'image' && mediaPreview) {
+                postData.imageUrl = mediaPreview;
+            } else if (mediaType === 'video' && mediaPreview) {
+                postData.videoUrl = mediaPreview;
+            }
+            onAddPost(postData);
+            cleanup();
         }
     };
     
     return (
-        <Modal isOpen={isOpen} onClose={onClose} title="Crear Anuncio">
+        <Modal isOpen={isOpen} onClose={cleanup} title="Crear Anuncio">
             <form onSubmit={handleSubmit}>
                 <div className="mb-4">
                     <label className="block text-sm font-medium text-gray-700 mb-2">¿Necesitas ayuda? Genera el texto con IA:</label>
@@ -112,7 +193,7 @@ const NewPostModal: React.FC<{
                             value={aiPrompt}
                             onChange={(e) => setAiPrompt(e.target.value)}
                             placeholder="Ej: recordar pago de cuotas el día 15"
-                            className="flex-grow p-2 border rounded-l-md focus:ring-primary focus:border-primary"
+                            className="flex-grow p-2 border border-gray-300 rounded-l-md focus:ring-primary focus:border-primary bg-gray-100 text-gray-900"
                         />
                          <button type="button" onClick={handleGenerate} disabled={isGenerating} className="px-4 py-2 bg-secondary text-white font-semibold rounded-r-md hover:bg-purple-600 disabled:bg-gray-400 flex items-center justify-center w-24">
                              {isGenerating ? (
@@ -129,12 +210,36 @@ const NewPostModal: React.FC<{
                     onChange={(e) => setContent(e.target.value)}
                     rows={6}
                     placeholder="O escribe tu anuncio aquí..."
-                    className="w-full p-3 border rounded-md focus:ring-primary focus:border-primary"
-                    required
+                    className="w-full p-3 border border-gray-300 rounded-md focus:ring-primary focus:border-primary bg-gray-100 text-gray-900"
                 ></textarea>
-                <div className="mt-6 flex justify-end space-x-2">
-                    <button type="button" onClick={onClose} className="px-4 py-2 bg-gray-200 text-gray-800 font-semibold rounded-md hover:bg-gray-300">Cancelar</button>
-                    <button type="submit" className="px-6 py-2 bg-primary text-white font-semibold rounded-md hover:bg-primary-focus">Publicar</button>
+
+                {mediaPreview && (
+                    <div className="mt-4 relative">
+                        {mediaType === 'image' && <img src={mediaPreview} alt="Vista previa" className="rounded-lg w-full max-h-60 object-contain bg-gray-100" />}
+                        {mediaType === 'video' && <video controls src={mediaPreview} className="rounded-lg w-full max-h-60 bg-black" />}
+                        <button type="button" onClick={removeMedia} className="absolute top-2 right-2 bg-black bg-opacity-50 text-white rounded-full p-1 hover:bg-opacity-75" aria-label="Quitar multimedia">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                    </div>
+                )}
+
+                <div className="mt-6 flex justify-between items-center">
+                    <div className="flex items-center space-x-2">
+                        <input type="file" accept="image/*,video/*" onChange={handleMediaChange} ref={fileInputRef} className="hidden" id="media-upload"/>
+                        <label htmlFor="media-upload" className="cursor-pointer text-primary hover:text-primary-focus p-2 rounded-full inline-block" title="Adjuntar foto o video">
+                             <PaperClipIcon />
+                        </label>
+                        <input type="file" accept="image/*" capture="environment" onChange={handleMediaChange} ref={cameraInputRef} className="hidden" id="camera-upload"/>
+                        <label htmlFor="camera-upload" className="cursor-pointer text-primary hover:text-primary-focus p-2 rounded-full inline-block" title="Tomar foto">
+                             <CameraIcon />
+                        </label>
+                    </div>
+                    <div className="flex space-x-2">
+                        <button type="button" onClick={cleanup} className="px-4 py-2 bg-gray-200 text-gray-800 font-semibold rounded-md hover:bg-gray-300">Cancelar</button>
+                        <button type="submit" className="px-6 py-2 bg-primary text-white font-semibold rounded-md hover:bg-primary-focus">Publicar</button>
+                    </div>
                 </div>
             </form>
         </Modal>
@@ -145,11 +250,29 @@ const HomeView: React.FC = () => {
     const [posts, setPosts] = useState<Post[]>(initialPosts);
     const [isModalOpen, setIsModalOpen] = useState(false);
 
-    const addPost = (content: string) => {
+    useEffect(() => {
+        if (sessionStorage.getItem('newPostModalOpen') === 'true') {
+            setIsModalOpen(true);
+        }
+    }, []);
+
+    const openModal = () => {
+        sessionStorage.setItem('newPostModalOpen', 'true');
+        setIsModalOpen(true);
+    };
+
+    const closeModal = () => {
+        sessionStorage.removeItem('newPostModalOpen');
+        setIsModalOpen(false);
+    };
+
+    const addPost = (postData: { content: string; imageUrl?: string; videoUrl?: string }) => {
         const newPost: Post = {
             id: `post${Date.now()}`,
             author: mockUsers['user1'], // Assuming admin posts
-            content,
+            content: postData.content,
+            imageUrl: postData.imageUrl,
+            videoUrl: postData.videoUrl,
             timestamp: 'Ahora mismo',
             likes: 0,
             comments: [],
@@ -159,7 +282,7 @@ const HomeView: React.FC = () => {
     
     return (
         <div>
-            <button onClick={() => setIsModalOpen(true)} className="w-full mb-6 bg-white p-4 text-left text-gray-500 rounded-lg shadow-md hover:shadow-lg transition-shadow border flex items-center">
+            <button onClick={openModal} className="w-full mb-6 bg-white p-4 text-left text-gray-500 rounded-lg shadow-md hover:shadow-lg transition-shadow border flex items-center">
                 <img src={mockUsers['user1'].avatarUrl} className="h-10 w-10 rounded-full mr-4" alt="user avatar"/>
                 <span>¿Qué está pasando en la privada?</span>
             </button>
@@ -168,7 +291,7 @@ const HomeView: React.FC = () => {
             
             <NewPostModal 
                 isOpen={isModalOpen}
-                onClose={() => setIsModalOpen(false)}
+                onClose={closeModal}
                 onAddPost={addPost}
             />
         </div>

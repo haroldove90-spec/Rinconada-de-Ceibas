@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { User } from '../types';
 
@@ -44,7 +43,7 @@ const DirectoryView: React.FC = () => {
                     placeholder="Buscar por nombre o casa..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full p-3 border border-gray-300 rounded-lg shadow-sm focus:ring-primary focus:border-primary"
+                    className="w-full p-3 border border-gray-300 rounded-lg shadow-sm focus:ring-primary focus:border-primary bg-gray-100 text-gray-900"
                 />
             </div>
             <div className="space-y-2">
