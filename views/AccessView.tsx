@@ -23,39 +23,64 @@ const VisitorCard: React.FC<{ visitor: Visitor }> = ({ visitor }) => {
 
 const NewVisitorModal: React.FC<{ isOpen: boolean, onClose: () => void, onAddVisitor: (visitor: Visitor) => void }> = ({ isOpen, onClose, onAddVisitor }) => {
     const [name, setName] = useState('');
-    const [date, setDate] = useState('');
+    const [visitDate, setVisitDate] = useState('');
+    const [visitTime, setVisitTime] = useState('');
+
+    const formatDateTime = (dateStr: string, timeStr: string): string => {
+        if (!dateStr || !timeStr) return 'Fecha no especificada';
+        const date = new Date(`${dateStr}T${timeStr}`);
+        return new Intl.DateTimeFormat('es-MX', {
+            dateStyle: 'full',
+            timeStyle: 'short',
+        }).format(date);
+    };
+
+    const cleanup = () => {
+        setName('');
+        setVisitDate('');
+        setVisitTime('');
+        onClose();
+    };
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
+        if (!name || !visitDate || !visitTime) {
+            alert('Por favor, completa todos los campos.');
+            return;
+        }
         const code = Math.floor(10000 + Math.random() * 90000).toString();
         const newVisitor: Visitor = {
             id: `vis${Date.now()}`,
             name,
-            visitDate: date,
+            visitDate: formatDateTime(visitDate, visitTime),
             accessCode: code,
             qrUrl: `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${code}`,
             status: 'pending'
         };
         onAddVisitor(newVisitor);
-        setName('');
-        setDate('');
-        onClose();
+        cleanup();
     };
 
     return (
-        <Modal isOpen={isOpen} onClose={onClose} title="Registrar Nueva Visita">
+        <Modal isOpen={isOpen} onClose={cleanup} title="Registrar Nueva Visita">
             <form onSubmit={handleSubmit}>
                 <div className="mb-4">
                     <label htmlFor="name" className="block text-sm font-medium text-gray-700">Nombre del Visitante</label>
-                    <input type="text" id="name" value={name} onChange={e => setName(e.target.value)} required className="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary bg-gray-100 text-gray-900" />
+                    <input type="text" id="name" value={name} onChange={e => setName(e.target.value)} required className="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary bg-gray-100 text-gray-900" placeholder="Ej: Juan Pérez (Plomero)"/>
                 </div>
-                <div className="mb-4">
-                    <label htmlFor="date" className="block text-sm font-medium text-gray-700">Fecha y Hora Estimada</label>
-                    <input type="text" id="date" value={date} onChange={e => setDate(e.target.value)} required placeholder='Ej: Mañana, 4 PM' className="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary bg-gray-100 text-gray-900" />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                    <div>
+                        <label htmlFor="visitDate" className="block text-sm font-medium text-gray-700">Fecha de la Visita</label>
+                        <input type="date" id="visitDate" value={visitDate} onChange={e => setVisitDate(e.target.value)} required className="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary bg-gray-100 text-gray-900" />
+                    </div>
+                    <div>
+                        <label htmlFor="visitTime" className="block text-sm font-medium text-gray-700">Hora Estimada</label>
+                        <input type="time" id="visitTime" value={visitTime} onChange={e => setVisitTime(e.target.value)} required className="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary bg-gray-100 text-gray-900" />
+                    </div>
                 </div>
                 <div className="mt-6 flex justify-end">
-                    <button type="button" onClick={onClose} className="mr-2 px-4 py-2 bg-gray-200 rounded-md hover:bg-gray-300">Cancelar</button>
-                    <button type="submit" className="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary-focus">Generar Acceso</button>
+                    <button type="button" onClick={cleanup} className="mr-2 px-4 py-2 bg-gray-200 rounded-md hover:bg-gray-300">Cancelar</button>
+                    <button type="submit" className="px-4 py-2 bg-primary text-white font-semibold rounded-md hover:bg-primary-focus">Generar Acceso</button>
                 </div>
             </form>
         </Modal>
