@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { PackageRequest, PackageRequestStatus, User } from '../types';
 import Modal from '../components/Modal';
@@ -29,10 +30,28 @@ const NewPackageRequestModal: React.FC<{
     const formatDateTime = (dateStr: string, timeStr: string): string => {
         if (!dateStr) return 'Fecha no especificada';
         const date = new Date(`${dateStr}T${timeStr || '00:00:00'}`);
-        return new Intl.DateTimeFormat('es-MX', {
+        
+        const datePart = new Intl.DateTimeFormat('es-MX', {
             dateStyle: 'medium',
-            timeStyle: timeStr ? 'short' : undefined,
         }).format(date);
+
+        if (!timeStr) {
+            return datePart;
+        }
+
+        const time12h = new Intl.DateTimeFormat('es-MX', {
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: true,
+        }).format(date);
+
+        const time24h = new Intl.DateTimeFormat('en-GB', {
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: false,
+        }).format(date);
+
+        return `${datePart}, ${time12h} (${time24h} hrs)`;
     };
 
     const cleanup = () => {
@@ -54,8 +73,8 @@ const NewPackageRequestModal: React.FC<{
         <Modal isOpen={isOpen} onClose={cleanup} title="Solicitar Ayuda para Paquete">
             <form onSubmit={handleSubmit}>
                 <div className="mb-4">
-                    <label htmlFor="carrier_name" className="block text-sm font-medium text-gray-700">Transportista</label>
-                    <input type="text" id="carrier_name" name="carrier_name" value={carrier} onChange={e => setCarrier(e.target.value)} required placeholder="Ej: Amazon, Mercado Libre" className="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary bg-gray-100 text-gray-900" autoComplete="off" />
+                    <label htmlFor="package-carrier-field" className="block text-sm font-medium text-gray-700">Transportista</label>
+                    <input type="text" id="package-carrier-field" name="package-carrier-field" value={carrier} onChange={e => setCarrier(e.target.value)} required placeholder="Ej: Amazon, Mercado Libre" className="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary bg-gray-100 text-gray-900" autoComplete="new-password" />
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
                      <div>

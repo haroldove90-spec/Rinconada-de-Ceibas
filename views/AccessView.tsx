@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Visitor } from '../types';
 import Modal from '../components/Modal';
@@ -101,10 +102,24 @@ const NewVisitorModal: React.FC<{ isOpen: boolean, onClose: () => void, onAddVis
     const formatDateTime = (dateStr: string, timeStr: string): string => {
         if (!dateStr || !timeStr) return 'Fecha no especificada';
         const date = new Date(`${dateStr}T${timeStr}`);
-        return new Intl.DateTimeFormat('es-MX', {
+
+        const datePart = new Intl.DateTimeFormat('es-MX', {
             dateStyle: 'full',
-            timeStyle: 'short',
         }).format(date);
+
+        const time12h = new Intl.DateTimeFormat('es-MX', {
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: true,
+        }).format(date);
+
+        const time24h = new Intl.DateTimeFormat('en-GB', {
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: false,
+        }).format(date);
+
+        return `${datePart}, ${time12h} (${time24h} hrs)`;
     };
 
     const cleanup = () => {
