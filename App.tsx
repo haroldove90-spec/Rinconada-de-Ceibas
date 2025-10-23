@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback } from 'react';
 import { View } from './types';
 import Header from './components/Header';
@@ -30,7 +29,7 @@ const App: React.FC = () => {
   }, [activeView]);
 
   return (
-    <div className="bg-slate-100 min-h-screen font-sans flex flex-col">
+    <div className="bg-light min-h-screen font-sans flex flex-col">
       <Header />
       <main className="flex-grow container mx-auto p-4 pb-24">
         {renderView()}

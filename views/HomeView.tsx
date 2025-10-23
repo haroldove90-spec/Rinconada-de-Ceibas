@@ -37,7 +37,7 @@ const PostCard: React.FC<{ post: Post }> = ({ post }) => {
     const [liked, setLiked] = useState(false);
 
     return (
-        <div className="bg-white rounded-lg shadow-md mb-4 overflow-hidden transition-shadow duration-300 hover:shadow-xl">
+        <div className="bg-white rounded-xl shadow-lg mb-4 overflow-hidden transition-shadow duration-300 hover:shadow-2xl">
             <div className="p-5">
                 <div className="flex items-center mb-4">
                     <img src={post.author.avatarUrl} alt={post.author.name} className="h-12 w-12 rounded-full mr-4 border-2 border-primary" />
@@ -62,7 +62,7 @@ const PostCard: React.FC<{ post: Post }> = ({ post }) => {
                     </div>
                 )}
                 
-                <div className="flex items-center text-gray-500 pt-3 border-t border-gray-100 mt-4">
+                <div className="flex items-center text-gray-500 pt-3 border-t border-slate-100 mt-4">
                     <button onClick={() => setLiked(!liked)} className={`flex items-center mr-6 transition-colors duration-200 ${liked ? 'text-red-500' : 'hover:text-red-500'}`}>
                         <HeartIcon filled={liked} />
                         <span className="ml-2 text-sm font-medium">{post.likes + (liked ? 1 : 0)}</span>
@@ -195,7 +195,7 @@ const NewPostModal: React.FC<{
                             placeholder="Ej: recordar pago de cuotas el día 15"
                             className="flex-grow p-2 border border-gray-300 rounded-l-md focus:ring-primary focus:border-primary bg-gray-100 text-gray-900"
                         />
-                         <button type="button" onClick={handleGenerate} disabled={isGenerating} className="px-4 py-2 bg-secondary text-white font-semibold rounded-r-md hover:bg-purple-600 disabled:bg-gray-400 flex items-center justify-center w-24">
+                         <button type="button" onClick={handleGenerate} disabled={isGenerating} className="px-4 py-2 bg-secondary text-white font-semibold rounded-r-md hover:bg-fuchsia-600 disabled:bg-gray-400 flex items-center justify-center w-24">
                              {isGenerating ? (
                                 <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
@@ -282,9 +282,11 @@ const HomeView: React.FC = () => {
     
     return (
         <div>
-            <button onClick={openModal} className="w-full mb-6 bg-white p-4 text-left text-gray-500 rounded-lg shadow-md hover:shadow-lg transition-shadow border flex items-center">
-                <img src={mockUsers['user1'].avatarUrl} className="h-10 w-10 rounded-full mr-4" alt="user avatar"/>
-                <span>¿Qué está pasando en la privada?</span>
+            <button onClick={openModal} className="w-full mb-6 text-left text-gray-500 rounded-xl transition-shadow bg-gradient-to-r from-primary to-accent p-0.5 shadow-lg hover:shadow-xl">
+                <div className="bg-white p-4 rounded-[10px] flex items-center">
+                     <img src={mockUsers['user1'].avatarUrl} className="h-10 w-10 rounded-full mr-4" alt="user avatar"/>
+                     <span>¿Qué está pasando en la privada?</span>
+                </div>
             </button>
             
             {posts.map(post => <PostCard key={post.id} post={post} />)}

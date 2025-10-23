@@ -51,7 +51,7 @@ const getStatusChip = (status: ReportStatus) => {
         case ReportStatus.Reported:
             return <span className="px-2 py-1 text-xs font-semibold text-red-800 bg-red-200 rounded-full">{status}</span>;
         case ReportStatus.InProgress:
-            return <span className="px-2 py-1 text-xs font-semibold text-blue-800 bg-blue-200 rounded-full">{status}</span>;
+            return <span className="px-2 py-1 text-xs font-semibold text-teal-800 bg-teal-200 rounded-full">{status}</span>;
         case ReportStatus.Resolved:
             return <span className="px-2 py-1 text-xs font-semibold text-green-800 bg-green-200 rounded-full">{status}</span>;
     }
@@ -59,7 +59,7 @@ const getStatusChip = (status: ReportStatus) => {
 
 const ReportCard: React.FC<{ report: MaintenanceReport; onResolveReport: (id: string) => void; }> = ({ report, onResolveReport }) => {
     return (
-        <div className="bg-white rounded-lg shadow-md mb-4 overflow-hidden transition-shadow duration-300 hover:shadow-xl">
+        <div className="bg-white rounded-xl shadow-lg mb-4 overflow-hidden transition-shadow duration-300 hover:shadow-2xl">
             {report.imageUrl && <img src={report.imageUrl} alt="Reporte" className="w-full h-48 object-cover" />}
             <div className="p-4">
                 <div className="flex justify-between items-start mb-2">
@@ -73,7 +73,7 @@ const ReportCard: React.FC<{ report: MaintenanceReport; onResolveReport: (id: st
                 <div className="px-4 pb-4 text-right">
                     <button 
                         onClick={() => onResolveReport(report.id)} 
-                        className="px-4 py-2 bg-accent text-white rounded-md hover:bg-amber-600 transition-colors font-semibold"
+                        className="px-4 py-2 bg-accent text-white rounded-md hover:bg-orange-700 transition-colors font-semibold"
                     >
                         Marcar como Resuelto
                     </button>

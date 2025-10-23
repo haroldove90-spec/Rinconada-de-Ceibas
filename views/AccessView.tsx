@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Visitor } from '../types';
 import Modal from '../components/Modal';
@@ -13,9 +12,9 @@ const initialVisitors: Visitor[] = [
 const getStatusChip = (status: Visitor['status']) => {
     switch (status) {
         case 'pending':
-            return <span className="px-2 py-1 text-xs font-semibold text-amber-800 bg-amber-200 rounded-full capitalize">Pendiente</span>;
+            return <span className="px-2 py-1 text-xs font-semibold text-orange-800 bg-orange-200 rounded-full capitalize">Pendiente</span>;
         case 'arrived':
-            return <span className="px-2 py-1 text-xs font-semibold text-blue-800 bg-blue-200 rounded-full">Llegó</span>;
+            return <span className="px-2 py-1 text-xs font-semibold text-teal-800 bg-teal-200 rounded-full">Llegó</span>;
         case 'departed':
             return <span className="px-2 py-1 text-xs font-semibold text-gray-800 bg-gray-200 rounded-full">Se retiró</span>;
         case 'cancelled':
@@ -71,7 +70,7 @@ const VisitorCard: React.FC<{
     };
 
     return (
-        <div className="bg-white rounded-lg shadow-md mb-4 p-4">
+        <div className="bg-white rounded-xl shadow-lg mb-4 p-4 transition-shadow hover:shadow-2xl">
             <div className="flex items-center">
                 <img src={visitor.qrUrl} alt="QR Code" className="w-20 h-20 mr-4"/>
                 <div className="flex-grow">
@@ -82,7 +81,7 @@ const VisitorCard: React.FC<{
                 </div>
             </div>
             {visitor.status === 'pending' && (
-                <div className="mt-4 pt-3 border-t border-gray-100 flex justify-end items-center space-x-2">
+                <div className="mt-4 pt-3 border-t border-slate-100 flex justify-end items-center space-x-2">
                     <button onClick={handleShare} className="p-2 text-gray-500 hover:text-primary rounded-full transition-colors" title="Compartir">
                         <ShareIcon />
                     </button>

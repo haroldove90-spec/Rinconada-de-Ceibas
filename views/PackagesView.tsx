@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { PackageRequest, PackageRequestStatus, User } from '../types';
 import Modal from '../components/Modal';
@@ -98,9 +97,9 @@ const NewPackageRequestModal: React.FC<{
 const getStatusChip = (status: PackageRequestStatus) => {
     switch (status) {
         case PackageRequestStatus.Pending:
-            return <span className="px-2 py-1 text-xs font-semibold text-amber-800 bg-amber-200 rounded-full">{status}</span>;
+            return <span className="px-2 py-1 text-xs font-semibold text-orange-800 bg-orange-200 rounded-full">{status}</span>;
         case PackageRequestStatus.Accepted:
-            return <span className="px-2 py-1 text-xs font-semibold text-blue-800 bg-blue-200 rounded-full">{status}</span>;
+            return <span className="px-2 py-1 text-xs font-semibold text-teal-800 bg-teal-200 rounded-full">{status}</span>;
         case PackageRequestStatus.Completed:
             return <span className="px-2 py-1 text-xs font-semibold text-green-800 bg-green-200 rounded-full">{status}</span>;
     }
@@ -115,7 +114,7 @@ const PackageRequestCard: React.FC<{
     const iAmHelping = request.helper?.id === currentUser.id;
 
     return (
-        <div className="bg-white rounded-lg shadow-md mb-4 p-4 transition-all duration-300">
+        <div className="bg-white rounded-xl shadow-lg mb-4 p-4 transition-shadow duration-300 hover:shadow-xl">
             <div className="flex justify-between items-start">
                 <div>
                     <p className="font-bold text-gray-800">Paquete de {request.requester.name} (Casa {request.requester.houseNumber})</p>
@@ -125,12 +124,12 @@ const PackageRequestCard: React.FC<{
                 </div>
                 {getStatusChip(request.status)}
             </div>
-             <div className="mt-4 pt-3 border-t border-gray-100 text-right">
+             <div className="mt-4 pt-3 border-t border-slate-100 text-right">
                 {!isMyRequest && request.status === PackageRequestStatus.Pending && (
                     <button onClick={() => onOfferHelp(request.id)} className="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary-focus transition-colors">Ofrecer Ayuda</button>
                 )}
                 {isMyRequest && request.status === PackageRequestStatus.Accepted && (
-                     <button onClick={() => onCompleteRequest(request.id)} className="px-4 py-2 bg-accent text-white rounded-md hover:bg-amber-600 transition-colors">Marcar como Recibido</button>
+                     <button onClick={() => onCompleteRequest(request.id)} className="px-4 py-2 bg-accent text-white rounded-md hover:bg-orange-700 transition-colors">Marcar como Recibido</button>
                 )}
              </div>
         </div>
@@ -204,7 +203,7 @@ const PackagesView: React.FC = () => {
                     ) : (
                         <p className="text-center text-gray-500 mt-8">No tienes solicitudes activas.</p>
                     )}
-                     <button onClick={() => setIsModalOpen(true)} className="w-full mt-2 bg-accent text-white font-bold py-3 px-4 rounded-lg shadow-lg hover:bg-amber-600 transition-transform transform hover:scale-105">
+                     <button onClick={() => setIsModalOpen(true)} className="w-full mt-2 bg-accent text-white font-bold py-3 px-4 rounded-lg shadow-lg hover:bg-orange-700 transition-transform transform hover:scale-105">
                         + Crear Solicitud de Ayuda
                     </button>
                 </div>

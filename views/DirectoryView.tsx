@@ -12,7 +12,7 @@ const initialNeighbors: User[] = [
 
 const NeighborCard: React.FC<{ neighbor: User }> = ({ neighbor }) => {
     return (
-        <div className="bg-white rounded-lg shadow-md mb-3 p-4 flex items-center justify-between">
+        <div className="bg-white rounded-xl shadow-lg mb-3 p-4 flex items-center justify-between transition-shadow hover:shadow-2xl">
             <div className="flex items-center">
                 <img src={neighbor.avatarUrl} alt={neighbor.name} className="w-12 h-12 rounded-full mr-4"/>
                 <div>
