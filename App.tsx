@@ -132,7 +132,7 @@ const App: React.FC = () => {
   return (
     <div className="bg-light min-h-screen font-sans flex flex-col">
       <Header onOpenRegistration={() => setIsRegistrationOpen(true)} />
-      <main className="flex-grow container mx-auto p-4 pb-24">
+      <main className="flex-grow container py-4 pb-24">
         {renderView()}
       </main>
       <BottomNav activeView={activeView} setActiveView={setActiveView} />

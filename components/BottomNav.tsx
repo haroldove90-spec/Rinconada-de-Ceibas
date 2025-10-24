@@ -34,7 +34,7 @@ const NavItem: React.FC<{
 const BottomNav: React.FC<BottomNavProps> = ({ activeView, setActiveView }) => {
   return (
     <footer className="fixed bottom-0 left-0 right-0 bg-primary shadow-lg">
-      <div className="container mx-auto flex justify-around items-center h-16">
+      <div className="container flex justify-around items-center h-16">
         <NavItem view={View.Home} label="Inicio" icon={<HomeIcon />} activeView={activeView} onClick={setActiveView} />
         <NavItem view={View.Packages} label="Paquetes" icon={<PackageIcon />} activeView={activeView} onClick={setActiveView} />
         <NavItem view={View.Reports} label="Reportes" icon={<WrenchScrewdriverIcon />} activeView={activeView} onClick={setActiveView} />
