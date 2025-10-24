@@ -1,7 +1,60 @@
 import React, { useState } from 'react';
 import { PackageRequest, PackageRequestStatus } from '../types';
 import { useUser } from '../context/UserContext';
+import Modal from '../components/Modal';
 
+const NewPackageRequestModal: React.FC<{
+    isOpen: boolean;
+    onClose: () => void;
+    onAddRequest: (carrier: string, deliveryTime: string) => void;
+}> = ({ isOpen, onClose, onAddRequest }) => {
+    const [carrier, setCarrier] = useState('');
+    const [deliveryTime, setDeliveryTime] = useState('');
+
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (carrier.trim() && deliveryTime.trim()) {
+            onAddRequest(carrier, deliveryTime);
+            setCarrier('');
+            setDeliveryTime('');
+        }
+    };
+
+    return (
+        <Modal isOpen={isOpen} onClose={onClose} title="Solicitar Ayuda con Paquete">
+            <form onSubmit={handleSubmit} autoComplete="off">
+                <div className="mb-4">
+                    <label htmlFor="carrier" className="block text-sm font-medium text-gray-700">Paquetería</label>
+                    <input
+                        id="carrier"
+                        type="text"
+                        value={carrier}
+                        onChange={e => setCarrier(e.target.value)}
+                        className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary bg-gray-100 text-black"
+                        placeholder="Ej: Amazon, Mercado Libre"
+                        required
+                    />
+                </div>
+                <div className="mb-4">
+                    <label htmlFor="deliveryTime" className="block text-sm font-medium text-gray-700">Horario de Entrega Estimado</label>
+                    <input
+                        id="deliveryTime"
+                        type="text"
+                        value={deliveryTime}
+                        onChange={e => setDeliveryTime(e.target.value)}
+                        className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary bg-gray-100 text-black"
+                        placeholder="Ej: Hoy, 3-5 PM"
+                        required
+                    />
+                </div>
+                <div className="mt-6 flex justify-end">
+                    <button type="button" onClick={onClose} className="mr-2 px-4 py-2 bg-gray-200 text-gray-800 font-semibold rounded-md hover:bg-gray-300">Cancelar</button>
+                    <button type="submit" className="px-4 py-2 bg-primary text-white font-semibold rounded-md hover:bg-primary-focus">Solicitar</button>
+                </div>
+            </form>
+        </Modal>
+    );
+};
 
 const initialRequests: PackageRequest[] = [
     { id: 'pkg1', requester: { id: 'user2', name: 'Carlos Pérez', houseNumber: 12, avatarUrl: 'https://i.pravatar.cc/150?u=carlos', role: 'user' }, carrier: 'Amazon', deliveryTime: 'Hoy, 3-5 PM', status: PackageRequestStatus.Pending },
@@ -58,6 +111,7 @@ const PackageRequestCard: React.FC<{
 const PackagesView: React.FC = () => {
     const [activeTab, setActiveTab] = useState<'requests' | 'help'>('requests');
     const [requests, setRequests] = useState<PackageRequest[]>(initialRequests);
+    const [isNewRequestModalOpen, setIsNewRequestModalOpen] = useState(false);
     const { currentUser } = useUser();
 
     if (!currentUser) {
@@ -80,11 +134,28 @@ const PackagesView: React.FC = () => {
         ));
     };
     
+    const handleAddRequest = (carrier: string, deliveryTime: string) => {
+        const newRequest: PackageRequest = {
+            id: `pkg${Date.now()}`,
+            requester: currentUser,
+            carrier,
+            deliveryTime,
+            status: PackageRequestStatus.Pending,
+        };
+        setRequests(prev => [newRequest, ...prev]);
+        setIsNewRequestModalOpen(false);
+    };
+
     const myRequests = requests.filter(r => r.requester.id === currentUser.id);
     const helpRequests = requests.filter(r => r.requester.id !== currentUser.id && r.status !== PackageRequestStatus.Completed);
 
     return (
         <div>
+            <NewPackageRequestModal
+                isOpen={isNewRequestModalOpen}
+                onClose={() => setIsNewRequestModalOpen(false)}
+                onAddRequest={handleAddRequest}
+            />
             <div className="flex justify-center mb-4 bg-gray-200 rounded-lg p-1">
                 <button
                     onClick={() => setActiveTab('requests')}
@@ -106,7 +177,9 @@ const PackagesView: React.FC = () => {
                 <div>
                     <div className="flex justify-between items-center mb-3">
                         <h2 className="text-xl font-bold text-gray-700">Mis Solicitudes</h2>
-                        <span className="font-bold text-primary">{myRequests.length}</span>
+                        <button onClick={() => setIsNewRequestModalOpen(true)} className="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary-focus transition-colors text-sm font-semibold">
+                            Solicitar Ayuda
+                        </button>
                     </div>
                     {myRequests.length > 0 ? (
                         myRequests.map(req => (

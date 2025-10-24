@@ -1,6 +1,60 @@
 import React, { useState } from 'react';
 import { Visitor } from '../types';
 import { ShareIcon } from '../components/icons/Icons';
+import Modal from '../components/Modal';
+
+const NewVisitorModal: React.FC<{
+    isOpen: boolean;
+    onClose: () => void;
+    onAddVisitor: (name: string, visitDate: string) => void;
+}> = ({ isOpen, onClose, onAddVisitor }) => {
+    const [name, setName] = useState('');
+    const [visitDate, setVisitDate] = useState('');
+
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (name.trim() && visitDate.trim()) {
+            onAddVisitor(name, visitDate);
+            setName('');
+            setVisitDate('');
+        }
+    };
+
+    return (
+        <Modal isOpen={isOpen} onClose={onClose} title="Generar Acceso para Visita">
+            <form onSubmit={handleSubmit} autoComplete="off">
+                <div className="mb-4">
+                    <label htmlFor="visitorName" className="block text-sm font-medium text-gray-700">Nombre del Visitante</label>
+                    <input
+                        id="visitorName"
+                        type="text"
+                        value={name}
+                        onChange={e => setName(e.target.value)}
+                        className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary bg-gray-100 text-black"
+                        placeholder="Ej: Juan Rodríguez (Electricista)"
+                        required
+                    />
+                </div>
+                <div className="mb-4">
+                    <label htmlFor="visitDate" className="block text-sm font-medium text-gray-700">Fecha y Hora de Visita</label>
+                    <input
+                        id="visitDate"
+                        type="text"
+                        value={visitDate}
+                        onChange={e => setVisitDate(e.target.value)}
+                        className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary bg-gray-100 text-black"
+                        placeholder="Ej: Hoy, 2:00 PM"
+                        required
+                    />
+                </div>
+                <div className="mt-6 flex justify-end">
+                    <button type="button" onClick={onClose} className="mr-2 px-4 py-2 bg-gray-200 text-gray-800 font-semibold rounded-md hover:bg-gray-300">Cancelar</button>
+                    <button type="submit" className="px-4 py-2 bg-primary text-white font-semibold rounded-md hover:bg-primary-focus">Generar</button>
+                </div>
+            </form>
+        </Modal>
+    );
+};
 
 const initialVisitors: Visitor[] = [
     { id: 'vis1', name: 'Juan Rodríguez (Electricista)', visitDate: 'Hoy, 2:00 PM', accessCode: '84319', qrUrl: 'https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=84319', status: 'pending' },
@@ -34,7 +88,6 @@ const VisitorCard: React.FC<{
         };
 
         try {
-            // Attempt to fetch the QR code and share it as an image file for a better experience
             const response = await fetch(visitor.qrUrl);
             if (!response.ok) throw new Error('Network response was not ok');
             
@@ -47,14 +100,12 @@ const VisitorCard: React.FC<{
                     files: [file],
                 });
             } else if (navigator.share) {
-                // Fallback to text-only if files can't be shared but share API exists
                 await navigator.share(shareData);
             } else {
                 alert('La función de compartir no es compatible con tu navegador.');
             }
         } catch (error) {
             console.error('Error al compartir con imagen, intentando solo texto:', error);
-            // Fallback to sharing text only if fetching the image or sharing the file fails
             if (navigator.share) {
                 try {
                     await navigator.share(shareData);
@@ -94,6 +145,7 @@ const VisitorCard: React.FC<{
 
 const AccessView: React.FC = () => {
     const [visitors, setVisitors] = useState<Visitor[]>(initialVisitors);
+    const [isNewVisitorModalOpen, setIsNewVisitorModalOpen] = useState(false);
     
     const handleMarkArrived = (visitorId: string) => {
         setVisitors(visitors.map(v => 
@@ -106,12 +158,40 @@ const AccessView: React.FC = () => {
             v.id === visitorId ? { ...v, status: 'cancelled' } : v
         ));
     };
+
+    const handleAddVisitor = (name: string, visitDate: string) => {
+        const accessCode = Math.floor(10000 + Math.random() * 90000).toString();
+        const newVisitor: Visitor = {
+            id: `vis${Date.now()}`,
+            name,
+            visitDate,
+            accessCode,
+            qrUrl: `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${accessCode}`,
+            status: 'pending',
+        };
+        setVisitors(prev => [newVisitor, ...prev]);
+        setIsNewVisitorModalOpen(false);
+    };
     
     const pendingVisitors = visitors.filter(v => v.status === 'pending');
     const pastVisitors = visitors.filter(v => v.status !== 'pending');
 
     return (
         <div>
+             <NewVisitorModal
+                isOpen={isNewVisitorModalOpen}
+                onClose={() => setIsNewVisitorModalOpen(false)}
+                onAddVisitor={handleAddVisitor}
+            />
+            <div className="mb-4 text-right">
+                 <button 
+                    onClick={() => setIsNewVisitorModalOpen(true)}
+                    className="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary-focus transition-colors font-semibold shadow-md"
+                >
+                    Generar Acceso
+                </button>
+            </div>
+
             <h2 className="text-xl font-bold mb-3 text-gray-700">Próximas Visitas</h2>
             {pendingVisitors.length > 0 ? (
                 pendingVisitors.map(visitor => <VisitorCard key={visitor.id} visitor={visitor} onArrive={handleMarkArrived} onCancel={handleCancelVisit} />)

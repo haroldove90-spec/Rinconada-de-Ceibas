@@ -1,7 +1,11 @@
 import React from 'react';
 import { useUser } from '../context/UserContext';
 
-const Header: React.FC = () => {
+interface HeaderProps {
+    onOpenRegistration: () => void;
+}
+
+const Header: React.FC<HeaderProps> = ({ onOpenRegistration }) => {
   const { users, currentUser, setCurrentUser } = useUser();
 
   const handleUserChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -30,6 +34,9 @@ const Header: React.FC = () => {
                 </option>
               ))}
             </select>
+            <button onClick={onOpenRegistration} className="px-3 py-1.5 text-sm font-semibold bg-white text-primary rounded-md hover:bg-slate-100 transition-colors">
+                Registrarse
+            </button>
         </div>
       </div>
     </header>

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { User } from '../types';
 import { useUser } from '../context/UserContext';
 
@@ -28,13 +28,25 @@ const NeighborCard: React.FC<{ neighbor: User; onMessageClick: (neighbor: User) 
 
 const DirectoryView: React.FC<DirectoryViewProps> = ({ onStartChat }) => {
     const { users, currentUser } = useUser();
+    const [searchTerm, setSearchTerm] = useState('');
     
     const filteredNeighbors = users.filter(neighbor => 
-        neighbor.id !== currentUser?.id
+        neighbor.id !== currentUser?.id &&
+        (neighbor.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+         neighbor.houseNumber.toString().includes(searchTerm))
     ).sort((a,b) => a.houseNumber - b.houseNumber);
 
     return (
         <div>
+            <div className="mb-4">
+                <input
+                    type="text"
+                    placeholder="Buscar por nombre o casa..."
+                    value={searchTerm}
+                    onChange={e => setSearchTerm(e.target.value)}
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-primary focus:border-primary bg-gray-100 text-black"
+                />
+            </div>
             <div className="space-y-2">
                  {filteredNeighbors.map(neighbor => <NeighborCard key={neighbor.id} neighbor={neighbor} onMessageClick={onStartChat} />)}
             </div>

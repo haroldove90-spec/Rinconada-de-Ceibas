@@ -1,3 +1,4 @@
+// FIX: Removed self-import of 'View' which was causing a conflict.
 export enum View {
   Home = 'home',
   Packages = 'packages',
@@ -73,8 +74,9 @@ export interface Visitor {
 }
 
 export interface ChatMessage {
-    id: string;
+    id:string;
     sender: User | 'system';
     text: string;
     timestamp: string;
+    readBy: string[];
 }

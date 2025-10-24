@@ -38,7 +38,7 @@ const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, onClose }
 
   return (
     <Modal isOpen={isOpen} onClose={cleanup} title="Registrarse en la Comunidad">
-      <form onSubmit={handleSubmit}>
+      <form onSubmit={handleSubmit} autoComplete="off">
         <div className="mb-4">
           <label htmlFor="reg-name" className="block text-sm font-medium text-gray-700">Nombre Completo</label>
           <input
@@ -47,7 +47,7 @@ const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, onClose }
             value={name}
             onChange={e => setName(e.target.value)}
             required
-            className="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary bg-white text-gray-900"
+            className="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary bg-gray-100 text-black"
             placeholder="Ej: María Rodríguez"
             autoComplete="name"
           />
@@ -60,7 +60,7 @@ const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, onClose }
             value={houseNumber}
             onChange={e => setHouseNumber(e.target.value)}
             required
-            className="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary bg-white text-gray-900"
+            className="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary bg-gray-100 text-black"
             placeholder="Ej: 42"
             autoComplete="off"
           />

@@ -9,33 +9,41 @@ interface ChatModalProps {
 }
 
 const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose, recipient }) => {
-  const { currentUser } = useUser();
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const { currentUser, chatHistory, sendChatMessage, markConversationAsRead } = useUser();
+  const [newMessage, setNewMessage] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    if (isOpen) {
-      setMessages([
-        {
-          id: 'system1',
-          sender: 'system',
-          text: `Iniciaste una conversación con ${recipient.name}.`,
-          timestamp: new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' }),
-        },
-      ]);
-    } else {
-        setMessages([]);
-    }
-  }, [isOpen, recipient]);
-  
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
-  useEffect(scrollToBottom, [messages]);
+  useEffect(scrollToBottom, [chatHistory, recipient, isOpen]);
+  
+  useEffect(() => {
+    if (!isOpen) {
+        setNewMessage('');
+    }
+  }, [isOpen]);
 
+  useEffect(() => {
+      if (isOpen && currentUser) {
+          const conversationId = [currentUser.id, recipient.id].sort().join('-');
+          markConversationAsRead(conversationId);
+      }
+  }, [isOpen, currentUser, recipient.id, markConversationAsRead]);
 
-  if (!isOpen) return null;
+  const handleSendMessage = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newMessage.trim() || !currentUser) return;
+    
+    sendChatMessage(currentUser, recipient, newMessage.trim());
+    setNewMessage('');
+  };
+
+  if (!isOpen || !currentUser) return null;
+
+  const conversationId = [currentUser.id, recipient.id].sort().join('-');
+  const messages = chatHistory[conversationId] || [];
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-40 flex justify-center items-end sm:items-center p-0 sm:p-4" onClick={onClose}>
@@ -47,12 +55,17 @@ const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose, recipient }) => 
             <p className="text-xs text-gray-500">Casa {recipient.houseNumber}</p>
           </div>
           <button onClick={onClose} className="absolute top-4 right-4 text-gray-500 hover:text-gray-800 sm:relative sm:top-auto sm:right-auto sm:ml-auto">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
         </div>
         <div className="p-4 flex-grow overflow-y-auto bg-light space-y-4">
+          {messages.length === 0 && (
+              <div className="text-center text-sm text-gray-500 italic my-2">
+                  Inicia una conversación con {recipient.name}.
+              </div>
+          )}
           {messages.map((msg) => {
             if (msg.sender === 'system') {
               return (
@@ -73,6 +86,28 @@ const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose, recipient }) => 
             );
           })}
            <div ref={messagesEndRef} />
+        </div>
+        <div className="p-2 border-t flex-shrink-0 bg-white">
+            <form onSubmit={handleSendMessage} className="flex items-center space-x-2">
+                <input
+                    type="text"
+                    value={newMessage}
+                    onChange={(e) => setNewMessage(e.target.value)}
+                    placeholder="Escribe un mensaje..."
+                    className="flex-grow w-full p-2.5 border border-gray-300 rounded-full focus:ring-primary focus:border-primary bg-gray-100 text-black"
+                    autoComplete="off"
+                />
+                <button
+                    type="submit"
+                    className="bg-primary text-white rounded-full p-3 hover:bg-primary-focus disabled:bg-gray-300 transition-colors"
+                    disabled={!newMessage.trim()}
+                    aria-label="Enviar mensaje"
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                        <path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z" />
+                    </svg>
+                </button>
+            </form>
         </div>
       </div>
     </div>

@@ -1,6 +1,62 @@
 import React, { useState } from 'react';
 import { MaintenanceReport, ReportStatus } from '../types';
 import { useUser } from '../context/UserContext';
+import Modal from '../components/Modal';
+
+const NewReportModal: React.FC<{
+    isOpen: boolean;
+    onClose: () => void;
+    onAddReport: (category: string, description: string) => void;
+}> = ({ isOpen, onClose, onAddReport }) => {
+    const [category, setCategory] = useState('');
+    const [description, setDescription] = useState('');
+    const reportCategories = ["Alumbrado Público", "Jardinería", "Seguridad", "Limpieza", "Infraestructura", "Otro"];
+
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (category.trim() && description.trim()) {
+            onAddReport(category, description);
+            setCategory('');
+            setDescription('');
+        }
+    };
+
+    return (
+        <Modal isOpen={isOpen} onClose={onClose} title="Levantar Reporte de Mantenimiento">
+            <form onSubmit={handleSubmit} autoComplete="off">
+                <div className="mb-4">
+                    <label htmlFor="category" className="block text-sm font-medium text-gray-700">Categoría</label>
+                    <select
+                        id="category"
+                        value={category}
+                        onChange={e => setCategory(e.target.value)}
+                        className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary bg-gray-100 text-black"
+                        required
+                    >
+                        <option value="" disabled>Selecciona una categoría</option>
+                        {reportCategories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+                    </select>
+                </div>
+                <div className="mb-4">
+                    <label htmlFor="description" className="block text-sm font-medium text-gray-700">Descripción del Problema</label>
+                    <textarea
+                        id="description"
+                        value={description}
+                        onChange={e => setDescription(e.target.value)}
+                        className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary bg-gray-100 text-black resize-none"
+                        rows={4}
+                        placeholder="Describe detalladamente el incidente..."
+                        required
+                    />
+                </div>
+                <div className="mt-6 flex justify-end">
+                    <button type="button" onClick={onClose} className="mr-2 px-4 py-2 bg-gray-200 text-gray-800 font-semibold rounded-md hover:bg-gray-300">Cancelar</button>
+                    <button type="submit" className="px-4 py-2 bg-primary text-white font-semibold rounded-md hover:bg-primary-focus">Enviar Reporte</button>
+                </div>
+            </form>
+        </Modal>
+    );
+};
 
 const initialReports: MaintenanceReport[] = [
     {
@@ -72,6 +128,7 @@ const ReportCard: React.FC<{ report: MaintenanceReport; onResolveReport: (id: st
 const ReportsView: React.FC = () => {
     const [reports, setReports] = useState<MaintenanceReport[]>(initialReports);
     const { currentUser } = useUser();
+    const [isNewReportModalOpen, setIsNewReportModalOpen] = useState(false);
 
     const handleResolveReport = (reportId: string) => {
         setReports(reports.map(report => 
@@ -81,8 +138,35 @@ const ReportsView: React.FC = () => {
         ));
     };
 
+    const handleAddReport = (category: string, description: string) => {
+        if (!currentUser) return;
+        const newReport: MaintenanceReport = {
+            id: `rep${Date.now()}`,
+            reporter: currentUser,
+            category,
+            description,
+            status: ReportStatus.Reported,
+            timestamp: 'Ahora mismo',
+        };
+        setReports(prev => [newReport, ...prev]);
+        setIsNewReportModalOpen(false);
+    };
+
     return (
         <div>
+            <NewReportModal
+                isOpen={isNewReportModalOpen}
+                onClose={() => setIsNewReportModalOpen(false)}
+                onAddReport={handleAddReport}
+            />
+            <div className="mb-4 text-right">
+                <button 
+                    onClick={() => setIsNewReportModalOpen(true)}
+                    className="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary-focus transition-colors font-semibold shadow-md"
+                >
+                    Levantar Reporte
+                </button>
+            </div>
             {reports.length > 0 ? (
                 reports.map(report => <ReportCard key={report.id} report={report} onResolveReport={handleResolveReport} />)
             ) : (
