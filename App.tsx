@@ -9,7 +9,6 @@ import AccessView from './views/AccessView';
 import DirectoryView from './views/DirectoryView';
 import FloatingChatButton from './components/FloatingChatButton';
 import ChatModal from './components/ChatModal';
-import RegistrationModal from './components/RegistrationModal';
 import { useUser } from './context/UserContext';
 
 
@@ -17,7 +16,6 @@ const App: React.FC = () => {
   const [activeView, setActiveView] = useState<View>(View.Home);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [chatRecipient, setChatRecipient] = useState<User | null>(null);
-  const [isRegistrationOpen, setRegistrationOpen] = useState(false);
   const { users } = useUser();
   const adminUser = users.find(u => u.role === 'admin');
 
@@ -56,7 +54,7 @@ const App: React.FC = () => {
 
   return (
     <div className="bg-light min-h-screen font-sans flex flex-col">
-      <Header onRegisterClick={() => setRegistrationOpen(true)} />
+      <Header />
       <main className="flex-grow container mx-auto p-4 pb-24">
         {renderView()}
       </main>
@@ -69,10 +67,6 @@ const App: React.FC = () => {
             recipient={chatRecipient}
           />
       )}
-      <RegistrationModal 
-        isOpen={isRegistrationOpen}
-        onClose={() => setRegistrationOpen(false)}
-      />
     </div>
   );
 };

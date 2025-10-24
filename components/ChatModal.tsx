@@ -11,7 +11,6 @@ interface ChatModalProps {
 const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose, recipient }) => {
   const { currentUser } = useUser();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [newMessage, setNewMessage] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -35,36 +34,6 @@ const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose, recipient }) => 
 
   useEffect(scrollToBottom, [messages]);
 
-
-  const handleSendMessage = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newMessage.trim() || !currentUser) return;
-
-    const userMessage: ChatMessage = {
-      id: `msg${Date.now()}`,
-      sender: currentUser,
-      text: newMessage,
-      timestamp: new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' }),
-    };
-
-    setMessages(prev => [...prev, userMessage]);
-    setNewMessage('');
-
-    // Simulate a reply
-    setTimeout(() => {
-      const replyText = recipient.role === 'admin' 
-        ? 'Gracias por tu mensaje. Un administrador te atenderá pronto.'
-        : `Hola, soy ${recipient.name}. He recibido tu mensaje.`;
-      
-      const replyMessage: ChatMessage = {
-        id: `msg${Date.now() + 1}`,
-        sender: recipient,
-        text: replyText,
-        timestamp: new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' }),
-      };
-      setMessages(prev => [...prev, replyMessage]);
-    }, 1500);
-  };
 
   if (!isOpen) return null;
 
@@ -104,23 +73,6 @@ const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose, recipient }) => 
             );
           })}
            <div ref={messagesEndRef} />
-        </div>
-        <div className="p-4 border-t bg-white flex-shrink-0">
-          <form onSubmit={handleSendMessage} className="flex items-center space-x-2">
-            <input
-              type="text"
-              value={newMessage}
-              onChange={(e) => setNewMessage(e.target.value)}
-              placeholder="Escribe un mensaje..."
-              className="flex-grow p-2 border border-gray-300 rounded-full focus:ring-primary focus:border-primary bg-white text-gray-900"
-              autoComplete="off"
-            />
-            <button type="submit" className="bg-primary text-white p-3 rounded-full hover:bg-primary-focus disabled:bg-gray-300" disabled={!newMessage.trim()}>
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                <path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z" />
-              </svg>
-            </button>
-          </form>
         </div>
       </div>
     </div>

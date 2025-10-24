@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
-import { PackageRequest, PackageRequestStatus, User } from '../types';
-import Modal from '../components/Modal';
+import { PackageRequest, PackageRequestStatus } from '../types';
 import { useUser } from '../context/UserContext';
 
 
@@ -10,84 +9,6 @@ const initialRequests: PackageRequest[] = [
     { id: 'pkg3', requester: { id: 'user3', name: 'Ana Gómez', houseNumber: 25, avatarUrl: 'https://i.pravatar.cc/150?u=ana', role: 'user' }, carrier: 'Estafeta', deliveryTime: 'Ayer', status: PackageRequestStatus.Completed, helper: { id: 'user2', name: 'Carlos Pérez', houseNumber: 12, avatarUrl: 'https://i.pravatar.cc/150?u=carlos', role: 'user' } },
     { id: 'pkg4', requester: { id: 'user3', name: 'Ana Gómez', houseNumber: 25, avatarUrl: 'https://i.pravatar.cc/150?u=ana', role: 'user' }, carrier: 'DHL', deliveryTime: 'Hoy, 12-2 PM', status: PackageRequestStatus.Accepted, helper: { id: 'user4', name: 'Luisa Torres', houseNumber: 8, avatarUrl: 'https://i.pravatar.cc/150?u=luisa', role: 'user' } },
 ];
-
-
-const NewPackageRequestModal: React.FC<{
-    isOpen: boolean;
-    onClose: () => void;
-    onAddRequest: (data: { carrier: string; deliveryTime: string; }) => void;
-}> = ({ isOpen, onClose, onAddRequest }) => {
-    const [carrier, setCarrier] = useState('');
-    const [deliveryDate, setDeliveryDate] = useState('');
-    const [deliveryTime, setDeliveryTime] = useState('');
-
-    const formatDateTime = (dateStr: string, timeStr: string): string => {
-        if (!dateStr) return 'Fecha no especificada';
-        const date = new Date(`${dateStr}T${timeStr || '00:00:00'}`);
-        
-        const datePart = new Intl.DateTimeFormat('es-MX', {
-            dateStyle: 'medium',
-        }).format(date);
-
-        if (!timeStr) {
-            return datePart;
-        }
-
-        const time12h = new Intl.DateTimeFormat('es-MX', {
-            hour: '2-digit',
-            minute: '2-digit',
-            hour12: true,
-        }).format(date);
-
-        const time24h = new Intl.DateTimeFormat('en-GB', {
-            hour: '2-digit',
-            minute: '2-digit',
-            hour12: false,
-        }).format(date);
-
-        return `${datePart}, ${time12h} (${time24h} hrs)`;
-    };
-
-    const cleanup = () => {
-        setCarrier('');
-        setDeliveryDate('');
-        setDeliveryTime('');
-        onClose();
-    };
-
-    const handleSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
-        if (carrier.trim() && deliveryDate.trim()) {
-            onAddRequest({ carrier, deliveryTime: formatDateTime(deliveryDate, deliveryTime) });
-            cleanup();
-        }
-    };
-    
-    return (
-        <Modal isOpen={isOpen} onClose={cleanup} title="Solicitar Ayuda para Paquete">
-            <form onSubmit={handleSubmit}>
-                <div className="mb-4">
-                    <label htmlFor="package-carrier-field" className="block text-sm font-medium text-gray-700">Transportista</label>
-                    <input type="text" id="package-carrier-field" name="package-carrier-field" value={carrier} onChange={e => setCarrier(e.target.value)} required placeholder="Ej: Amazon, Mercado Libre" className="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary bg-white text-gray-900" autoComplete="off" />
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-                     <div>
-                        <label htmlFor="deliveryDate" className="block text-sm font-medium text-gray-700">Fecha de entrega</label>
-                        <input type="date" id="deliveryDate" value={deliveryDate} onChange={e => setDeliveryDate(e.target.value)} required className="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary bg-white text-gray-900" />
-                    </div>
-                    <div>
-                        <label htmlFor="deliveryTime" className="block text-sm font-medium text-gray-700">Hora estimada (Opcional)</label>
-                        <input type="time" id="deliveryTime" value={deliveryTime} onChange={e => setDeliveryTime(e.target.value)} className="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary bg-white text-gray-900" />
-                    </div>
-                </div>
-                <div className="mt-6 flex justify-end">
-                    <button type="button" onClick={cleanup} className="mr-2 px-4 py-2 bg-gray-200 text-gray-800 font-semibold rounded-md hover:bg-gray-300">Cancelar</button>
-                    <button type="submit" className="px-4 py-2 bg-primary text-white font-semibold rounded-md hover:bg-primary-focus">Publicar Solicitud</button>
-                </div>
-            </form>
-        </Modal>
-    );
-};
 
 const getStatusChip = (status: PackageRequestStatus) => {
     switch (status) {
@@ -137,7 +58,6 @@ const PackageRequestCard: React.FC<{
 const PackagesView: React.FC = () => {
     const [activeTab, setActiveTab] = useState<'requests' | 'help'>('requests');
     const [requests, setRequests] = useState<PackageRequest[]>(initialRequests);
-    const [isModalOpen, setIsModalOpen] = useState(false);
     const { currentUser } = useUser();
 
     if (!currentUser) {
@@ -160,17 +80,6 @@ const PackagesView: React.FC = () => {
         ));
     };
     
-    const handleAddRequest = (data: { carrier: string, deliveryTime: string }) => {
-        const newRequest: PackageRequest = {
-            id: `pkg${Date.now()}`,
-            requester: currentUser,
-            carrier: data.carrier,
-            deliveryTime: data.deliveryTime,
-            status: PackageRequestStatus.Pending,
-        };
-        setRequests([newRequest, ...requests]);
-    };
-
     const myRequests = requests.filter(r => r.requester.id === currentUser.id);
     const helpRequests = requests.filter(r => r.requester.id !== currentUser.id && r.status !== PackageRequestStatus.Completed);
 
@@ -206,9 +115,6 @@ const PackagesView: React.FC = () => {
                     ) : (
                         <p className="text-center text-gray-500 mt-8">No tienes solicitudes activas.</p>
                     )}
-                     <button onClick={() => setIsModalOpen(true)} className="w-full mt-2 bg-accent text-white font-bold py-3 px-4 rounded-lg shadow-lg hover:bg-orange-700 transition-transform transform hover:scale-105">
-                        + Crear Solicitud de Ayuda
-                    </button>
                 </div>
             )}
             
@@ -228,11 +134,6 @@ const PackagesView: React.FC = () => {
                     )}
                 </div>
             )}
-            <NewPackageRequestModal 
-                isOpen={isModalOpen}
-                onClose={() => setIsModalOpen(false)}
-                onAddRequest={handleAddRequest}
-            />
         </div>
     );
 };

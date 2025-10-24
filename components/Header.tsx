@@ -1,11 +1,7 @@
 import React from 'react';
 import { useUser } from '../context/UserContext';
 
-interface HeaderProps {
-  onRegisterClick: () => void;
-}
-
-const Header: React.FC<HeaderProps> = ({ onRegisterClick }) => {
+const Header: React.FC = () => {
   const { users, currentUser, setCurrentUser } = useUser();
 
   const handleUserChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -22,12 +18,6 @@ const Header: React.FC<HeaderProps> = ({ onRegisterClick }) => {
           Rinconada de Ceibas
         </h1>
         <div className="flex items-center space-x-2">
-            <button 
-              onClick={onRegisterClick} 
-              className="text-white text-sm font-semibold bg-white/20 hover:bg-white/30 px-3 py-1.5 rounded-md transition"
-            >
-              Registrarse
-            </button>
             <select 
               value={currentUser?.id} 
               onChange={handleUserChange}
