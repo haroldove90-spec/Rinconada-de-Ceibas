@@ -1,21 +1,16 @@
 import React, { useState } from 'react';
 import { PackageRequest, PackageRequestStatus, User } from '../types';
 import Modal from '../components/Modal';
+import { useUser } from '../context/UserContext';
 
-const mockUsers: { [key: string]: User } = {
-    'user2': { id: 'user2', name: 'Carlos Pérez', houseNumber: 12, avatarUrl: 'https://i.pravatar.cc/150?u=carlos' },
-    'user3': { id: 'user3', name: 'Ana Gómez', houseNumber: 25, avatarUrl: 'https://i.pravatar.cc/150?u=ana' },
-    'user4': { id: 'user4', name: 'Luisa Torres', houseNumber: 8, avatarUrl: 'https://i.pravatar.cc/150?u=luisa' },
-};
 
 const initialRequests: PackageRequest[] = [
-    { id: 'pkg1', requester: mockUsers['user2'], carrier: 'Amazon', deliveryTime: 'Hoy, 3-5 PM', status: PackageRequestStatus.Pending },
-    { id: 'pkg2', requester: mockUsers['user4'], carrier: 'Mercado Libre', deliveryTime: 'Mañana, 10 AM', status: PackageRequestStatus.Accepted, helper: mockUsers['user3'] },
-    { id: 'pkg3', requester: mockUsers['user3'], carrier: 'Estafeta', deliveryTime: 'Ayer', status: PackageRequestStatus.Completed, helper: mockUsers['user2'] },
-    { id: 'pkg4', requester: mockUsers['user3'], carrier: 'DHL', deliveryTime: 'Hoy, 12-2 PM', status: PackageRequestStatus.Accepted, helper: mockUsers['user4'] },
+    { id: 'pkg1', requester: { id: 'user2', name: 'Carlos Pérez', houseNumber: 12, avatarUrl: 'https://i.pravatar.cc/150?u=carlos', role: 'user' }, carrier: 'Amazon', deliveryTime: 'Hoy, 3-5 PM', status: PackageRequestStatus.Pending },
+    { id: 'pkg2', requester: { id: 'user4', name: 'Luisa Torres', houseNumber: 8, avatarUrl: 'https://i.pravatar.cc/150?u=luisa', role: 'user' }, carrier: 'Mercado Libre', deliveryTime: 'Mañana, 10 AM', status: PackageRequestStatus.Accepted, helper: { id: 'user3', name: 'Ana Gómez', houseNumber: 25, avatarUrl: 'https://i.pravatar.cc/150?u=ana', role: 'user' } },
+    { id: 'pkg3', requester: { id: 'user3', name: 'Ana Gómez', houseNumber: 25, avatarUrl: 'https://i.pravatar.cc/150?u=ana', role: 'user' }, carrier: 'Estafeta', deliveryTime: 'Ayer', status: PackageRequestStatus.Completed, helper: { id: 'user2', name: 'Carlos Pérez', houseNumber: 12, avatarUrl: 'https://i.pravatar.cc/150?u=carlos', role: 'user' } },
+    { id: 'pkg4', requester: { id: 'user3', name: 'Ana Gómez', houseNumber: 25, avatarUrl: 'https://i.pravatar.cc/150?u=ana', role: 'user' }, carrier: 'DHL', deliveryTime: 'Hoy, 12-2 PM', status: PackageRequestStatus.Accepted, helper: { id: 'user4', name: 'Luisa Torres', houseNumber: 8, avatarUrl: 'https://i.pravatar.cc/150?u=luisa', role: 'user' } },
 ];
 
-const currentUser = mockUsers['user3'];
 
 const NewPackageRequestModal: React.FC<{
     isOpen: boolean;
@@ -73,16 +68,16 @@ const NewPackageRequestModal: React.FC<{
             <form onSubmit={handleSubmit}>
                 <div className="mb-4">
                     <label htmlFor="package-carrier-field" className="block text-sm font-medium text-gray-700">Transportista</label>
-                    <input type="text" id="package-carrier-field" name="package-carrier-field" value={carrier} onChange={e => setCarrier(e.target.value)} required placeholder="Ej: Amazon, Mercado Libre" className="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary bg-gray-100 text-gray-900" autoComplete="new-password" />
+                    <input type="text" id="package-carrier-field" name="package-carrier-field" value={carrier} onChange={e => setCarrier(e.target.value)} required placeholder="Ej: Amazon, Mercado Libre" className="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary bg-white text-gray-900" autoComplete="off" />
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
                      <div>
                         <label htmlFor="deliveryDate" className="block text-sm font-medium text-gray-700">Fecha de entrega</label>
-                        <input type="date" id="deliveryDate" value={deliveryDate} onChange={e => setDeliveryDate(e.target.value)} required className="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary bg-gray-100 text-gray-900" />
+                        <input type="date" id="deliveryDate" value={deliveryDate} onChange={e => setDeliveryDate(e.target.value)} required className="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary bg-white text-gray-900" />
                     </div>
                     <div>
                         <label htmlFor="deliveryTime" className="block text-sm font-medium text-gray-700">Hora estimada (Opcional)</label>
-                        <input type="time" id="deliveryTime" value={deliveryTime} onChange={e => setDeliveryTime(e.target.value)} className="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary bg-gray-100 text-gray-900" />
+                        <input type="time" id="deliveryTime" value={deliveryTime} onChange={e => setDeliveryTime(e.target.value)} className="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary bg-white text-gray-900" />
                     </div>
                 </div>
                 <div className="mt-6 flex justify-end">
@@ -110,6 +105,9 @@ const PackageRequestCard: React.FC<{
     onOfferHelp: (id: string) => void;
     onCompleteRequest: (id: string) => void;
 }> = ({ request, onOfferHelp, onCompleteRequest }) => {
+    const { currentUser } = useUser();
+    if (!currentUser) return null;
+
     const isMyRequest = request.requester.id === currentUser.id;
     const iAmHelping = request.helper?.id === currentUser.id;
 
@@ -140,6 +138,11 @@ const PackagesView: React.FC = () => {
     const [activeTab, setActiveTab] = useState<'requests' | 'help'>('requests');
     const [requests, setRequests] = useState<PackageRequest[]>(initialRequests);
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const { currentUser } = useUser();
+
+    if (!currentUser) {
+        return <div>Cargando...</div>;
+    }
 
     const handleOfferHelp = (requestId: string) => {
         setRequests(requests.map(req => 

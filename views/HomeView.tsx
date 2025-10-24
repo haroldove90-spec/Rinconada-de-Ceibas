@@ -3,29 +3,24 @@ import { Post, User } from '../types';
 import { HeartIcon, ChatBubbleLeftIcon, PaperClipIcon, CameraIcon } from '../components/icons/Icons';
 import Modal from '../components/Modal';
 import { generateAnnouncement } from '../services/geminiService';
+import { useUser } from '../context/UserContext';
 
-
-const mockUsers: { [key: string]: User } = {
-    'user1': { id: 'user1', name: 'Admin', houseNumber: 0, avatarUrl: 'https://i.pravatar.cc/150?u=admin' },
-    'user2': { id: 'user2', name: 'Carlos Pérez', houseNumber: 12, avatarUrl: 'https://i.pravatar.cc/150?u=carlos' },
-    'user3': { id: 'user3', name: 'Ana Gómez', houseNumber: 25, avatarUrl: 'https://i.pravatar.cc/150?u=ana' },
-};
 
 const initialPosts: Post[] = [
     {
         id: 'post1',
-        author: mockUsers['user1'],
+        author: { id: 'user1', name: 'Admin', houseNumber: 0, avatarUrl: 'https://i.pravatar.cc/150?u=admin', role: 'admin' },
         content: 'Recordatorio: La fumigación de áreas comunes se realizará este sábado a las 8 AM. Por favor, mantengan sus ventanas cerradas y eviten que las mascotas salgan durante la mañana.',
         timestamp: 'Hace 2 horas',
         likes: 15,
         comments: [
-            { id: 'c1', author: mockUsers['user3'], content: '¡Gracias por el aviso!', timestamp: 'Hace 1 hora' }
+            { id: 'c1', author: { id: 'user3', name: 'Ana Gómez', houseNumber: 25, avatarUrl: 'https://i.pravatar.cc/150?u=ana', role: 'user' }, content: '¡Gracias por el aviso!', timestamp: 'Hace 1 hora' }
         ],
         imageUrl: 'https://picsum.photos/seed/fumigacion/600/400',
     },
     {
         id: 'post2',
-        author: mockUsers['user2'],
+        author: { id: 'user2', name: 'Carlos Pérez', houseNumber: 12, avatarUrl: 'https://i.pravatar.cc/150?u=carlos', role: 'user' },
         content: 'Hola vecinos, encontré un juego de llaves cerca del área de juegos. Si son de alguien, contáctenme. Soy de la casa 12.',
         timestamp: 'Hace 1 día',
         likes: 22,
@@ -193,7 +188,8 @@ const NewPostModal: React.FC<{
                             value={aiPrompt}
                             onChange={(e) => setAiPrompt(e.target.value)}
                             placeholder="Ej: recordar pago de cuotas el día 15"
-                            className="flex-grow p-2 border border-gray-300 rounded-l-md focus:ring-primary focus:border-primary bg-gray-100 text-gray-900"
+                            className="flex-grow p-2 border border-gray-300 rounded-l-md focus:ring-primary focus:border-primary bg-white text-gray-900"
+                            autoComplete="off"
                         />
                          <button type="button" onClick={handleGenerate} disabled={isGenerating} className="px-4 py-2 bg-secondary text-white font-semibold rounded-r-md hover:bg-fuchsia-600 disabled:bg-gray-400 flex items-center justify-center w-24">
                              {isGenerating ? (
@@ -210,7 +206,7 @@ const NewPostModal: React.FC<{
                     onChange={(e) => setContent(e.target.value)}
                     rows={6}
                     placeholder="O escribe tu anuncio aquí..."
-                    className="w-full p-3 border border-gray-300 rounded-md focus:ring-primary focus:border-primary bg-gray-100 text-gray-900"
+                    className="w-full p-3 border border-gray-300 rounded-md focus:ring-primary focus:border-primary bg-white text-gray-900"
                 ></textarea>
 
                 {mediaPreview && (
@@ -249,6 +245,7 @@ const NewPostModal: React.FC<{
 const HomeView: React.FC = () => {
     const [posts, setPosts] = useState<Post[]>(initialPosts);
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const { currentUser } = useUser();
 
     useEffect(() => {
         if (sessionStorage.getItem('newPostModalOpen') === 'true') {
@@ -267,9 +264,10 @@ const HomeView: React.FC = () => {
     };
 
     const addPost = (postData: { content: string; imageUrl?: string; videoUrl?: string }) => {
+        if (!currentUser) return;
         const newPost: Post = {
             id: `post${Date.now()}`,
-            author: mockUsers['user1'], // Assuming admin posts
+            author: currentUser,
             content: postData.content,
             imageUrl: postData.imageUrl,
             videoUrl: postData.videoUrl,
@@ -282,12 +280,14 @@ const HomeView: React.FC = () => {
     
     return (
         <div>
-            <button onClick={openModal} className="w-full mb-6 text-left text-gray-500 rounded-xl transition-shadow bg-gradient-to-r from-primary to-accent p-0.5 shadow-lg hover:shadow-xl">
-                <div className="bg-white p-4 rounded-[10px] flex items-center">
-                     <img src={mockUsers['user1'].avatarUrl} className="h-10 w-10 rounded-full mr-4" alt="user avatar"/>
-                     <span>¿Qué está pasando en la privada?</span>
-                </div>
-            </button>
+            {currentUser && currentUser.role === 'admin' && (
+                <button onClick={openModal} className="w-full mb-6 text-left text-gray-500 rounded-xl transition-shadow bg-gradient-to-r from-primary to-accent p-0.5 shadow-lg hover:shadow-xl">
+                    <div className="bg-white p-4 rounded-[10px] flex items-center">
+                         <img src={currentUser.avatarUrl} className="h-10 w-10 rounded-full mr-4" alt="user avatar"/>
+                         <span>¿Qué está pasando en la privada?</span>
+                    </div>
+                </button>
+            )}
             
             {posts.map(post => <PostCard key={post.id} post={post} />)}
             

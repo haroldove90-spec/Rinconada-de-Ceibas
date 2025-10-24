@@ -11,6 +11,7 @@ export interface User {
   name: string;
   houseNumber: number;
   avatarUrl: string;
+  role: 'admin' | 'user';
 }
 
 export interface Post {
@@ -69,4 +70,11 @@ export interface Visitor {
     accessCode: string;
     qrUrl: string;
     status: 'pending' | 'arrived' | 'departed' | 'cancelled';
+}
+
+export interface ChatMessage {
+    id: string;
+    sender: User | 'system';
+    text: string;
+    timestamp: string;
 }

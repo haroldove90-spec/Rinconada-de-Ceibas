@@ -153,16 +153,16 @@ const NewVisitorModal: React.FC<{ isOpen: boolean, onClose: () => void, onAddVis
             <form onSubmit={handleSubmit}>
                 <div className="mb-4">
                     <label htmlFor="name" className="block text-sm font-medium text-gray-700">Nombre del Visitante</label>
-                    <input type="text" id="name" value={name} onChange={e => setName(e.target.value)} required className="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary bg-gray-100 text-gray-900" placeholder="Ej: Juan Pérez (Plomero)"/>
+                    <input type="text" id="name" value={name} onChange={e => setName(e.target.value)} required className="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary bg-white text-gray-900" placeholder="Ej: Juan Pérez (Plomero)" autoComplete="off"/>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
                     <div>
                         <label htmlFor="visitDate" className="block text-sm font-medium text-gray-700">Fecha de la Visita</label>
-                        <input type="date" id="visitDate" value={visitDate} onChange={e => setVisitDate(e.target.value)} required className="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary bg-gray-100 text-gray-900" />
+                        <input type="date" id="visitDate" value={visitDate} onChange={e => setVisitDate(e.target.value)} required className="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary bg-white text-gray-900" />
                     </div>
                     <div>
                         <label htmlFor="visitTime" className="block text-sm font-medium text-gray-700">Hora Estimada</label>
-                        <input type="time" id="visitTime" value={visitTime} onChange={e => setVisitTime(e.target.value)} required className="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary bg-gray-100 text-gray-900" />
+                        <input type="time" id="visitTime" value={visitTime} onChange={e => setVisitTime(e.target.value)} required className="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary bg-white text-gray-900" />
                     </div>
                 </div>
                 <div className="mt-6 flex justify-end">

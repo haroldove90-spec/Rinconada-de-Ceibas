@@ -1,18 +1,12 @@
 import React, { useState, useRef } from 'react';
 import { MaintenanceReport, ReportStatus, User } from '../types';
 import Modal from '../components/Modal';
-
-const mockUsers: { [key: string]: User } = {
-    'user2': { id: 'user2', name: 'Carlos Pérez', houseNumber: 12, avatarUrl: 'https://i.pravatar.cc/150?u=carlos' },
-    'user3': { id: 'user3', name: 'Ana Gómez', houseNumber: 25, avatarUrl: 'https://i.pravatar.cc/150?u=ana' },
-};
-
-const currentUser = mockUsers['user3'];
+import { useUser } from '../context/UserContext';
 
 const initialReports: MaintenanceReport[] = [
     {
         id: 'rep1',
-        reporter: mockUsers['user3'],
+        reporter: { id: 'user3', name: 'Ana Gómez', houseNumber: 25, avatarUrl: 'https://i.pravatar.cc/150?u=ana', role: 'user' },
         category: 'Alumbrado Público',
         description: 'La lámpara del poste frente a la casa 28 está parpadeando desde anoche.',
         status: ReportStatus.Reported,
@@ -20,7 +14,7 @@ const initialReports: MaintenanceReport[] = [
     },
     {
         id: 'rep2',
-        reporter: mockUsers['user2'],
+        reporter: { id: 'user2', name: 'Carlos Pérez', houseNumber: 12, avatarUrl: 'https://i.pravatar.cc/150?u=carlos', role: 'user' },
         category: 'Seguridad',
         description: 'La puerta de acceso peatonal no cierra automáticamente. Hay que jalarla fuerte.',
         imageUrl: 'https://picsum.photos/seed/gate/400/300',
@@ -29,7 +23,7 @@ const initialReports: MaintenanceReport[] = [
     },
     {
         id: 'rep3',
-        reporter: mockUsers['user3'],
+        reporter: { id: 'user3', name: 'Ana Gómez', houseNumber: 25, avatarUrl: 'https://i.pravatar.cc/150?u=ana', role: 'user' },
         category: 'Jardinería',
         description: 'Se regó la manguera principal del jardín central.',
         status: ReportStatus.Resolved,
@@ -58,6 +52,8 @@ const getStatusChip = (status: ReportStatus) => {
 };
 
 const ReportCard: React.FC<{ report: MaintenanceReport; onResolveReport: (id: string) => void; }> = ({ report, onResolveReport }) => {
+    const { currentUser } = useUser();
+    
     return (
         <div className="bg-white rounded-xl shadow-lg mb-4 overflow-hidden transition-shadow duration-300 hover:shadow-2xl">
             {report.imageUrl && <img src={report.imageUrl} alt="Reporte" className="w-full h-48 object-cover" />}
@@ -69,7 +65,7 @@ const ReportCard: React.FC<{ report: MaintenanceReport; onResolveReport: (id: st
                 <p className="text-gray-700 mb-3">{report.description}</p>
                 <p className="text-sm text-gray-500">Reportado por {report.reporter.name} (Casa {report.reporter.houseNumber}) &middot; {report.timestamp}</p>
             </div>
-             {report.status !== ReportStatus.Resolved && (
+             {currentUser?.role === 'admin' && report.status !== ReportStatus.Resolved && (
                 <div className="px-4 pb-4 text-right">
                     <button 
                         onClick={() => onResolveReport(report.id)} 
@@ -140,7 +136,7 @@ const NewReportModal: React.FC<{
             <form onSubmit={handleSubmit}>
                  <div className="mb-4">
                     <label htmlFor="category" className="block text-sm font-medium text-gray-700">Categoría</label>
-                    <select id="category" value={category} onChange={(e) => setCategory(e.target.value)} className="mt-1 block w-full p-2 border border-gray-300 bg-gray-100 text-gray-900 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary">
+                    <select id="category" value={category} onChange={(e) => setCategory(e.target.value)} className="mt-1 block w-full p-2 border border-gray-300 bg-white text-gray-900 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary">
                         <option>Alumbrado Público</option>
                         <option>Seguridad</option>
                         <option>Jardinería</option>
@@ -150,7 +146,7 @@ const NewReportModal: React.FC<{
                 </div>
                 <div className="mb-4">
                     <label htmlFor="description" className="block text-sm font-medium text-gray-700">Descripción</label>
-                    <textarea id="description" rows={4} value={description} onChange={(e) => setDescription(e.target.value)} className="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary bg-gray-100 text-gray-900" placeholder="Describe el problema detalladamente..." required></textarea>
+                    <textarea id="description" rows={4} value={description} onChange={(e) => setDescription(e.target.value)} className="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary bg-white text-gray-900" placeholder="Describe el problema detalladamente..." required></textarea>
                 </div>
                 
                 {imagePreview && (
@@ -180,8 +176,10 @@ const NewReportModal: React.FC<{
 const ReportsView: React.FC = () => {
     const [reports, setReports] = useState<MaintenanceReport[]>(initialReports);
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const { currentUser } = useUser();
 
     const handleAddReport = (reportData: { category: string; description: string; imageUrl?: string }) => {
+        if (!currentUser) return;
         const newReport: MaintenanceReport = {
             id: `rep${Date.now()}`,
             reporter: currentUser,
