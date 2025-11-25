@@ -25,76 +25,128 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     // 1. Fetch Directory (All visible profiles)
     const fetchDirectory = useCallback(async () => {
-        const { data, error } = await supabase
-            .from('profiles')
-            .select('*')
-            .order('house_number', { ascending: true });
-        
-        if (error) {
-            console.error('Error loading users:', error);
-        } else if (data) {
-            const mappedUsers: User[] = data.map((u: any) => ({
-                id: u.id,
-                name: u.name,
-                houseNumber: u.house_number,
-                avatarUrl: u.avatar_url || `https://i.pravatar.cc/150?u=${u.id}`,
-                role: u.role
-            }));
-            setUsers(mappedUsers);
+        try {
+            const { data, error } = await supabase
+                .from('profiles')
+                .select('*')
+                .order('house_number', { ascending: true });
+            
+            if (error) {
+                console.error('Error loading users:', error);
+            } else if (data) {
+                const mappedUsers: User[] = data.map((u: any) => ({
+                    id: u.id,
+                    name: u.name,
+                    houseNumber: u.house_number,
+                    avatarUrl: u.avatar_url || `https://i.pravatar.cc/150?u=${u.id}`,
+                    role: u.role
+                }));
+                setUsers(mappedUsers);
+            }
+        } catch (e) {
+            console.error("Exception fetching directory:", e);
         }
     }, []);
 
+    const fetchCurrentUserProfile = async (userId: string, email?: string) => {
+        try {
+            const { data, error } = await supabase
+                .from('profiles')
+                .select('*')
+                .eq('id', userId)
+                .maybeSingle(); // Use maybeSingle instead of single to handle null gracefully
+            
+            if (data) {
+                setCurrentUser({
+                    id: data.id,
+                    name: data.name,
+                    houseNumber: data.house_number,
+                    avatarUrl: data.avatar_url || `https://i.pravatar.cc/150?u=${data.id}`,
+                    role: data.role
+                });
+            } else {
+                // Self-healing: Profile missing but Auth exists (e.g., after DB reset)
+                console.warn("Profile missing for auth user. Attempting to recreate.");
+                if (email) {
+                   const { error: insertError } = await supabase.from('profiles').insert([{
+                        id: userId,
+                        name: 'Vecino (Restaurado)',
+                        house_number: 0,
+                        role: 'user',
+                        avatar_url: `https://i.pravatar.cc/150?u=${userId}`
+                   }]);
+                   
+                   if (!insertError) {
+                       // Retry fetch
+                       const { data: newData } = await supabase.from('profiles').select('*').eq('id', userId).single();
+                       if (newData) {
+                            setCurrentUser({
+                                id: newData.id,
+                                name: newData.name,
+                                houseNumber: newData.house_number,
+                                avatarUrl: newData.avatar_url,
+                                role: newData.role
+                            });
+                       }
+                   }
+                } else {
+                    setCurrentUser(null);
+                }
+            }
+        } catch (e) {
+            console.error("Exception fetching profile:", e);
+        }
+    };
+
     // 2. Handle Auth State Changes
     useEffect(() => {
-        // Initial fetch of directory
-        fetchDirectory();
+        let mounted = true;
 
-        // Check active session
         const initializeAuth = async () => {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (session?.user) {
-                await fetchCurrentUserProfile(session.user.id);
-            } else {
-                setCurrentUser(null);
+            try {
+                // Initial fetch of directory
+                await fetchDirectory();
+
+                // Check active session
+                const { data: { session }, error } = await supabase.auth.getSession();
+                
+                if (error) throw error;
+
+                if (mounted) {
+                    if (session?.user) {
+                        await fetchCurrentUserProfile(session.user.id, session.user.email);
+                    } else {
+                        setCurrentUser(null);
+                    }
+                }
+            } catch (err) {
+                console.error("Auth initialization failed:", err);
+                if (mounted) setCurrentUser(null);
+            } finally {
+                if (mounted) setIsLoading(false);
             }
-            setIsLoading(false);
         };
 
         initializeAuth();
 
         // Listen for auth changes
         const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+            if (!mounted) return;
+
             if (session?.user) {
-                await fetchCurrentUserProfile(session.user.id);
+                await fetchCurrentUserProfile(session.user.id, session.user.email);
             } else {
                 setCurrentUser(null);
             }
             setIsLoading(false);
         });
 
-        return () => subscription.unsubscribe();
+        return () => {
+            mounted = false;
+            subscription.unsubscribe();
+        };
     }, [fetchDirectory]);
 
-    const fetchCurrentUserProfile = async (userId: string) => {
-        const { data, error } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', userId)
-            .single();
-        
-        if (data) {
-            setCurrentUser({
-                id: data.id,
-                name: data.name,
-                houseNumber: data.house_number,
-                avatarUrl: data.avatar_url || `https://i.pravatar.cc/150?u=${data.id}`,
-                role: data.role
-            });
-        } else {
-            // Handle case where auth exists but profile doesn't (shouldn't happen with correct flow)
-             console.error('Profile not found for auth user', error);
-        }
-    };
 
     // 3. Auth Actions
     const login = async (email: string, pass: string) => {
@@ -116,27 +168,28 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         if (!authData.user) return { error: { message: "No se pudo crear el usuario" } };
 
         // 2. Create Profile linked to Auth ID
-        // Note: Make sure the 'profiles' table RLS allows insert or is public, 
-        // or use a Postgres Trigger (safest). For this app, we assume client insert is allowed.
+        // Use upsert to safely handle cases where profile creation is retried
         const { error: profileError } = await supabase
             .from('profiles')
-            .insert([{
-                id: authData.user.id, // CRITICAL: Link Auth ID to Profile ID
+            .upsert([{
+                id: authData.user.id,
                 name: name,
                 house_number: houseNumber,
                 role: 'user', // Default role
                 avatar_url: `https://i.pravatar.cc/150?u=${authData.user.id}`
-            }]);
+            }], { onConflict: 'id' });
 
         if (profileError) {
-            // If profile creation fails, we might want to cleanup the auth user, 
-            // but for now just return error.
             console.error("Profile creation failed:", profileError);
             return { error: profileError };
         }
 
+        // 3. Ensure local state is updated immediately
+        await fetchCurrentUserProfile(authData.user.id, email);
+        
         // Refresh directory to include new user
         fetchDirectory();
+        
         return { error: null };
     };
 
@@ -174,7 +227,6 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 
                 if (!history[conversationId]) history[conversationId] = [];
                 
-                // Safely handle null sender/recipient (e.g. deleted users)
                 if (!msg.sender) return;
 
                 const senderObj: User = {
@@ -235,13 +287,11 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const markConversationAsRead = async (conversationId: string) => {
         if (!currentUser) return;
         
-        // conversationId is "id1-id2". Find the other user ID.
         const ids = conversationId.split('-');
         const otherId = ids.find(id => id !== currentUser.id);
         
         if (!otherId) return;
 
-        // Mark all messages from the other user to me as read
         const { error } = await supabase
             .from('messages')
             .update({ is_read: true })

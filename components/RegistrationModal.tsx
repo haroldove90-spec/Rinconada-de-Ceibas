@@ -56,7 +56,14 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
         }
     } catch (err: any) {
         console.error(err);
-        setError(err.message || 'Ocurrió un error. Verifica tus credenciales.');
+        let msg = err.message || 'Ocurrió un error. Verifica tus credenciales.';
+        
+        // Translate common Supabase errors
+        if (msg.includes('already registered')) msg = 'Este correo ya está registrado.';
+        if (msg.includes('Invalid login credentials')) msg = 'Correo o contraseña incorrectos.';
+        if (msg.includes('Password should be')) msg = 'La contraseña debe tener al menos 6 caracteres.';
+
+        setError(msg);
     } finally {
         setLoading(false);
     }

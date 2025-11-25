@@ -1,13 +1,17 @@
 import { GoogleGenAI } from "@google/genai";
 
 // The API key is injected by the environment.
-const apiKey = process.env.API_KEY;
+// Safe check for process.env in browser environments
+const apiKey = (typeof process !== 'undefined' && process.env) ? process.env.API_KEY : undefined;
 
 let ai: GoogleGenAI | null = null;
 if (apiKey) {
     ai = new GoogleGenAI({ apiKey });
 } else {
-    console.warn("API_KEY is not set. AI features will be disabled.");
+    // Suppress warning if running in purely client-side demo without env setup
+    if (typeof process !== 'undefined') {
+        console.warn("API_KEY is not set. AI features will be disabled.");
+    }
 }
 
 export const generateAnnouncement = async (prompt: string): Promise<string> => {
