@@ -1,8 +1,9 @@
-import React, { useState, useRef } from 'react';
-import { Post, Comment } from '../types';
+import React, { useState, useRef, useEffect } from 'react';
+import { Post, Comment, User } from '../types';
 import { HeartIcon, ChatBubbleLeftIcon, CameraIcon, PaperClipIcon } from '../components/icons/Icons';
 import { useUser } from '../context/UserContext';
 import Modal from '../components/Modal';
+import { supabase } from '../services/supabaseClient';
 
 interface NewPostModalProps {
   isOpen: boolean;
@@ -29,7 +30,7 @@ const NewPostModal: React.FC<NewPostModalProps> = ({ isOpen, onClose, onAddPost 
         setImage(reader.result as string);
       };
       reader.readAsDataURL(file);
-      e.target.value = ''; // Reset file input to allow re-selecting the same file
+      e.target.value = ''; 
     }
   };
 
@@ -100,30 +101,8 @@ const NewPostModal: React.FC<NewPostModalProps> = ({ isOpen, onClose, onAddPost 
   );
 };
 
-const initialPosts: Post[] = [
-    {
-        id: 'post1',
-        author: { id: 'user1', name: 'Admin', houseNumber: 0, avatarUrl: 'https://i.pravatar.cc/150?u=admin', role: 'admin' },
-        content: 'Recordatorio: La fumigación de áreas comunes se realizará este sábado a las 8 AM. Por favor, mantengan sus ventanas cerradas y eviten que las mascotas salgan durante la mañana.',
-        timestamp: 'Hace 2 horas',
-        likes: 15,
-        comments: [
-            { id: 'c1', author: { id: 'user3', name: 'Ana Gómez', houseNumber: 25, avatarUrl: 'https://i.pravatar.cc/150?u=ana', role: 'user' }, content: '¡Gracias por el aviso!', timestamp: 'Hace 1 hora' }
-        ],
-        imageUrl: 'https://picsum.photos/seed/fumigacion/600/400',
-    },
-    {
-        id: 'post2',
-        author: { id: 'user2', name: 'Carlos Pérez', houseNumber: 12, avatarUrl: 'https://i.pravatar.cc/150?u=carlos', role: 'user' },
-        content: 'Hola vecinos, encontré un juego de llaves cerca del área de juegos. Si son de alguien, contáctenme. Soy de la casa 12.',
-        timestamp: 'Hace 1 día',
-        likes: 22,
-        comments: []
-    },
-];
-
-const PostCard: React.FC<{ post: Post; onAddComment: (postId: string, commentText: string) => void; }> = ({ post, onAddComment }) => {
-    const [liked, setLiked] = useState(false);
+const PostCard: React.FC<{ post: Post; onAddComment: (postId: string, commentText: string) => void; onLike: (post: Post) => void }> = ({ post, onAddComment, onLike }) => {
+    const [liked, setLiked] = useState(false); // Optimistic UI for likes could be improved with a real like table check
     const [newComment, setNewComment] = useState('');
     const { currentUser } = useUser();
 
@@ -134,6 +113,11 @@ const PostCard: React.FC<{ post: Post; onAddComment: (postId: string, commentTex
         setNewComment('');
       }
     };
+    
+    const toggleLike = () => {
+        setLiked(!liked);
+        onLike(post);
+    }
 
     return (
         <div className="bg-white rounded-xl shadow-lg mb-4 overflow-hidden transition-shadow duration-300 hover:shadow-2xl">
@@ -162,7 +146,7 @@ const PostCard: React.FC<{ post: Post; onAddComment: (postId: string, commentTex
                 )}
                 
                 <div className="flex items-center text-gray-500 pt-3 border-t border-slate-100 mt-4">
-                    <button onClick={() => setLiked(!liked)} className={`flex items-center mr-6 transition-colors duration-200 ${liked ? 'text-red-500' : 'hover:text-red-500'}`}>
+                    <button onClick={toggleLike} className={`flex items-center mr-6 transition-colors duration-200 ${liked ? 'text-red-500' : 'hover:text-red-500'}`}>
                         <HeartIcon filled={liked} />
                         <span className="ml-2 text-sm font-medium">{post.likes + (liked ? 1 : 0)}</span>
                     </button>
@@ -217,39 +201,112 @@ const PostCard: React.FC<{ post: Post; onAddComment: (postId: string, commentTex
 };
 
 const HomeView: React.FC = () => {
-    const [posts, setPosts] = useState<Post[]>(initialPosts);
+    const [posts, setPosts] = useState<Post[]>([]);
     const { currentUser } = useUser();
     const [isNewPostModalOpen, setIsNewPostModalOpen] = useState(false);
 
-    const handleAddPost = (content: string, imageUrl?: string) => {
-        if (!currentUser) return;
-        const newPost: Post = {
-            id: `post${Date.now()}`,
-            author: currentUser,
-            content,
-            timestamp: 'Ahora mismo',
-            likes: 0,
-            comments: [],
-            imageUrl,
-        };
-        setPosts(prevPosts => [newPost, ...prevPosts]);
-        setIsNewPostModalOpen(false);
+    const fetchPosts = async () => {
+        const { data, error } = await supabase
+            .from('posts')
+            .select(`
+                *,
+                author:author_id(id, name, house_number, avatar_url, role),
+                comments(
+                    id, 
+                    content, 
+                    created_at, 
+                    author:author_id(id, name, house_number, avatar_url, role)
+                )
+            `)
+            .order('created_at', { ascending: false });
+
+        if (error) {
+            console.error('Error fetching posts:', error);
+            return;
+        }
+
+        if (data) {
+            const mappedPosts: Post[] = data.map((p: any) => ({
+                id: p.id,
+                author: {
+                    id: p.author.id,
+                    name: p.author.name,
+                    houseNumber: p.author.house_number,
+                    avatarUrl: p.author.avatar_url,
+                    role: p.author.role
+                },
+                content: p.content,
+                timestamp: new Date(p.created_at).toLocaleString(),
+                likes: p.likes,
+                imageUrl: p.image_url,
+                videoUrl: p.video_url,
+                comments: p.comments.map((c: any) => ({
+                    id: c.id,
+                    content: c.content,
+                    timestamp: new Date(c.created_at).toLocaleString(),
+                    author: {
+                        id: c.author.id,
+                        name: c.author.name,
+                        houseNumber: c.author.house_number,
+                        avatarUrl: c.author.avatar_url,
+                        role: c.author.role
+                    }
+                }))
+            }));
+            setPosts(mappedPosts);
+        }
     };
 
-    const handleAddComment = (postId: string, commentText: string) => {
+    useEffect(() => {
+        fetchPosts();
+    }, []);
+
+    const handleAddPost = async (content: string, imageUrl?: string) => {
         if (!currentUser) return;
-        const newComment: Comment = {
-            id: `c${Date.now()}`,
-            author: currentUser,
-            content: commentText,
-            timestamp: 'Ahora mismo',
-        };
-        setPosts(posts => posts.map(post => {
-            if (post.id === postId) {
-                return { ...post, comments: [...post.comments, newComment] };
-            }
-            return post;
-        }));
+        
+        const { error } = await supabase
+            .from('posts')
+            .insert([{
+                author_id: currentUser.id,
+                content,
+                image_url: imageUrl,
+                likes: 0
+            }]);
+
+        if (error) {
+            console.error('Error adding post', error);
+        } else {
+            fetchPosts();
+            setIsNewPostModalOpen(false);
+        }
+    };
+
+    const handleAddComment = async (postId: string, commentText: string) => {
+        if (!currentUser) return;
+        
+        const { error } = await supabase
+            .from('comments')
+            .insert([{
+                post_id: postId,
+                author_id: currentUser.id,
+                content: commentText
+            }]);
+            
+        if (error) {
+            console.error('Error adding comment', error);
+        } else {
+            fetchPosts();
+        }
+    };
+
+    const handleLike = async (post: Post) => {
+        // Simple increment implementation
+         const { error } = await supabase
+            .from('posts')
+            .update({ likes: post.likes + 1 })
+            .eq('id', post.id);
+
+        if(!error) fetchPosts();
     };
 
     return (
@@ -268,7 +325,7 @@ const HomeView: React.FC = () => {
                 onClose={() => setIsNewPostModalOpen(false)}
                 onAddPost={handleAddPost}
             />
-            {posts.map(post => <PostCard key={post.id} post={post} onAddComment={handleAddComment} />)}
+            {posts.map(post => <PostCard key={post.id} post={post} onAddComment={handleAddComment} onLike={handleLike} />)}
         </div>
     );
 };

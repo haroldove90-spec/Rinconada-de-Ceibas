@@ -1,161 +1,261 @@
-import React, { createContext, useState, useContext, ReactNode, useEffect, useMemo } from 'react';
+import React, { createContext, useState, useContext, ReactNode, useEffect, useMemo, useCallback } from 'react';
 import { User, ChatMessage } from '../types';
-
-const initialUsers: User[] = [
-    { id: 'user1', name: 'Admin', houseNumber: 0, avatarUrl: 'https://i.pravatar.cc/150?u=admin', role: 'admin' },
-    { id: 'user2', name: 'Carlos Pérez', houseNumber: 12, avatarUrl: 'https://i.pravatar.cc/150?u=carlos', role: 'user' },
-    { id: 'user3', name: 'Ana Gómez', houseNumber: 25, avatarUrl: 'https://i.pravatar.cc/150?u=ana', role: 'user' },
-    { id: 'user4', name: 'Luisa Torres', houseNumber: 8, avatarUrl: 'https://i.pravatar.cc/150?u=luisa', role: 'user' },
-    { id: 'user5', name: 'Miguel Hernández', houseNumber: 3, avatarUrl: 'https://i.pravatar.cc/150?u=miguel', role: 'user' },
-    { id: 'user6', name: 'Sofía Ramírez', houseNumber: 15, avatarUrl: 'https://i.pravatar.cc/150?u=sofia', role: 'user' },
-];
+import { supabase } from '../services/supabaseClient';
 
 interface UserContextType {
     users: User[];
     currentUser: User | null;
-    setCurrentUser: (user: User) => void;
-    addUser: (userData: { name: string; houseNumber: number }) => void;
+    isLoading: boolean;
+    login: (email: string, pass: string) => Promise<{ error: any }>;
+    register: (email: string, pass: string, name: string, houseNumber: number) => Promise<{ error: any }>;
+    logout: () => Promise<void>;
     chatHistory: Record<string, ChatMessage[]>;
-    sendChatMessage: (from: User, to: User, text: string) => void;
-    markConversationAsRead: (conversationId: string) => void;
+    sendChatMessage: (from: User, to: User, text: string) => Promise<void>;
+    markConversationAsRead: (conversationId: string) => Promise<void>;
     unreadInfo: { total: number };
 }
 
 const UserContext = createContext<UserContextType | undefined>(undefined);
 
 export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-    const [users, setUsers] = useState<User[]>(() => {
-        try {
-            const savedUsers = window.localStorage.getItem('rinconada-users');
-            return savedUsers ? JSON.parse(savedUsers) : initialUsers;
-        } catch (error) {
-            console.warn('Could not load users from localStorage', error);
-            return initialUsers;
-        }
-    });
-    
-    const [currentUser, setCurrentUser] = useState<User | null>(() => {
-        try {
-            const allUsers: User[] = JSON.parse(window.localStorage.getItem('rinconada-users') || JSON.stringify(initialUsers));
-            const currentUserId = window.localStorage.getItem('rinconada-currentUser-id');
-            if (currentUserId) {
-                const foundUser = allUsers.find((u: User) => u.id === currentUserId);
-                if (foundUser) return foundUser;
-            }
-            return allUsers[0] || null;
-        } catch (error) {
-            console.warn('Could not load current user from localStorage', error);
-            return initialUsers[0] || null;
-        }
-    });
+    const [users, setUsers] = useState<User[]>([]);
+    const [currentUser, setCurrentUser] = useState<User | null>(null);
+    const [isLoading, setIsLoading] = useState(true);
+    const [chatHistory, setChatHistory] = useState<Record<string, ChatMessage[]>>({});
 
-    const [chatHistory, setChatHistory] = useState<Record<string, ChatMessage[]>>(() => {
-        try {
-            const savedHistory = window.localStorage.getItem('rinconada-chatHistory');
-            const parsedHistory = savedHistory ? JSON.parse(savedHistory) : {};
-            // Migration for old messages without 'readBy'
-            Object.keys(parsedHistory).forEach(key => {
-                parsedHistory[key] = parsedHistory[key].map((msg: any) => ({
-                    ...msg,
-                    readBy: msg.readBy || (msg.sender ? [msg.sender.id] : []),
-                }));
-            });
-            return parsedHistory;
-        } catch (error) {
-            console.warn('Could not load chat history from localStorage', error);
-            return {};
+    // 1. Fetch Directory (All visible profiles)
+    const fetchDirectory = useCallback(async () => {
+        const { data, error } = await supabase
+            .from('profiles')
+            .select('*')
+            .order('house_number', { ascending: true });
+        
+        if (error) {
+            console.error('Error loading users:', error);
+        } else if (data) {
+            const mappedUsers: User[] = data.map((u: any) => ({
+                id: u.id,
+                name: u.name,
+                houseNumber: u.house_number,
+                avatarUrl: u.avatar_url || `https://i.pravatar.cc/150?u=${u.id}`,
+                role: u.role
+            }));
+            setUsers(mappedUsers);
         }
-    });
+    }, []);
 
+    // 2. Handle Auth State Changes
     useEffect(() => {
-        try {
-            window.localStorage.setItem('rinconada-users', JSON.stringify(users));
-        } catch (error) {
-            console.warn('Could not save users to localStorage', error);
-        }
-    }, [users]);
-    
-    useEffect(() => {
-        try {
-            if (currentUser) {
-                window.localStorage.setItem('rinconada-currentUser-id', currentUser.id);
+        // Initial fetch of directory
+        fetchDirectory();
+
+        // Check active session
+        const initializeAuth = async () => {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session?.user) {
+                await fetchCurrentUserProfile(session.user.id);
             } else {
-                window.localStorage.removeItem('rinconada-currentUser-id');
+                setCurrentUser(null);
             }
-        } catch (error) {
-            console.warn('Could not save current user to localStorage', error);
+            setIsLoading(false);
+        };
+
+        initializeAuth();
+
+        // Listen for auth changes
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+            if (session?.user) {
+                await fetchCurrentUserProfile(session.user.id);
+            } else {
+                setCurrentUser(null);
+            }
+            setIsLoading(false);
+        });
+
+        return () => subscription.unsubscribe();
+    }, [fetchDirectory]);
+
+    const fetchCurrentUserProfile = async (userId: string) => {
+        const { data, error } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', userId)
+            .single();
+        
+        if (data) {
+            setCurrentUser({
+                id: data.id,
+                name: data.name,
+                houseNumber: data.house_number,
+                avatarUrl: data.avatar_url || `https://i.pravatar.cc/150?u=${data.id}`,
+                role: data.role
+            });
+        } else {
+            // Handle case where auth exists but profile doesn't (shouldn't happen with correct flow)
+             console.error('Profile not found for auth user', error);
+        }
+    };
+
+    // 3. Auth Actions
+    const login = async (email: string, pass: string) => {
+        const { error } = await supabase.auth.signInWithPassword({
+            email,
+            password: pass,
+        });
+        return { error };
+    };
+
+    const register = async (email: string, pass: string, name: string, houseNumber: number) => {
+        // 1. Create Auth User
+        const { data: authData, error: authError } = await supabase.auth.signUp({
+            email,
+            password: pass,
+        });
+
+        if (authError) return { error: authError };
+        if (!authData.user) return { error: { message: "No se pudo crear el usuario" } };
+
+        // 2. Create Profile linked to Auth ID
+        // Note: Make sure the 'profiles' table RLS allows insert or is public, 
+        // or use a Postgres Trigger (safest). For this app, we assume client insert is allowed.
+        const { error: profileError } = await supabase
+            .from('profiles')
+            .insert([{
+                id: authData.user.id, // CRITICAL: Link Auth ID to Profile ID
+                name: name,
+                house_number: houseNumber,
+                role: 'user', // Default role
+                avatar_url: `https://i.pravatar.cc/150?u=${authData.user.id}`
+            }]);
+
+        if (profileError) {
+            // If profile creation fails, we might want to cleanup the auth user, 
+            // but for now just return error.
+            console.error("Profile creation failed:", profileError);
+            return { error: profileError };
+        }
+
+        // Refresh directory to include new user
+        fetchDirectory();
+        return { error: null };
+    };
+
+    const logout = async () => {
+        await supabase.auth.signOut();
+        setCurrentUser(null);
+    };
+
+    // 4. Chat System
+    // Fetch Messages
+    const fetchMessages = useCallback(async () => {
+        if (!currentUser) return;
+        
+        const { data, error } = await supabase
+            .from('messages')
+            .select(`
+                *,
+                sender:sender_id(id, name, house_number, avatar_url, role),
+                recipient:recipient_id(id, name, house_number, avatar_url, role)
+            `)
+            .or(`sender_id.eq.${currentUser.id},recipient_id.eq.${currentUser.id}`)
+            .order('created_at', { ascending: true });
+
+        if (error) {
+            console.error('Error fetching messages:', error);
+            return;
+        }
+
+        if (data) {
+            const history: Record<string, ChatMessage[]> = {};
+            
+            data.forEach((msg: any) => {
+                const otherId = msg.sender_id === currentUser.id ? msg.recipient_id : msg.sender_id;
+                const conversationId = [currentUser.id, otherId].sort().join('-');
+                
+                if (!history[conversationId]) history[conversationId] = [];
+                
+                // Safely handle null sender/recipient (e.g. deleted users)
+                if (!msg.sender) return;
+
+                const senderObj: User = {
+                    id: msg.sender.id,
+                    name: msg.sender.name,
+                    houseNumber: msg.sender.house_number,
+                    avatarUrl: msg.sender.avatar_url,
+                    role: msg.sender.role
+                };
+
+                const timestamp = new Date(msg.created_at).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
+
+                history[conversationId].push({
+                    id: msg.id,
+                    sender: senderObj,
+                    text: msg.text,
+                    timestamp: timestamp,
+                    readBy: msg.is_read ? [msg.sender_id, msg.recipient_id] : [msg.sender_id]
+                });
+            });
+            setChatHistory(history);
         }
     }, [currentUser]);
 
+    // Set up realtime subscription for messages
     useEffect(() => {
-        try {
-            window.localStorage.setItem('rinconada-chatHistory', JSON.stringify(chatHistory));
-        } catch (error) {
-            console.warn('Could not save chat history to localStorage', error);
-        }
-    }, [chatHistory]);
+        if (!currentUser) return;
+        fetchMessages();
 
+        const channel = supabase
+            .channel('public:messages')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'messages' }, () => {
+                fetchMessages();
+            })
+            .subscribe();
 
-    const addUser = (userData: { name: string; houseNumber: number }) => {
-        const newUser: User = {
-            id: `user${Date.now()}`,
-            name: userData.name,
-            houseNumber: userData.houseNumber,
-            avatarUrl: `https://i.pravatar.cc/150?u=${Date.now()}`,
-            role: 'user',
+        return () => {
+            supabase.removeChannel(channel);
         };
-        setUsers(prevUsers => [...prevUsers, newUser]);
-        setCurrentUser(newUser);
-    };
+    }, [currentUser, fetchMessages]);
 
-    const sendChatMessage = (from: User, to: User, text: string) => {
-        const conversationId = [from.id, to.id].sort().join('-');
-        const newMessage: ChatMessage = {
-            id: `msg-${Date.now()}`,
-            sender: from,
-            text,
-            timestamp: new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' }),
-            readBy: [from.id], // The sender has "read" it by sending it
-        };
+
+    const sendChatMessage = async (from: User, to: User, text: string) => {
+        const { error } = await supabase
+            .from('messages')
+            .insert([{
+                sender_id: from.id,
+                recipient_id: to.id,
+                text: text,
+                is_read: false
+            }]);
         
-        setChatHistory(prev => {
-            const newHistory = { ...prev };
-            const conversation = newHistory[conversationId] ? [...newHistory[conversationId]] : [];
-            conversation.push(newMessage);
-            newHistory[conversationId] = conversation;
-            return newHistory;
-        });
+        if (error) {
+            console.error('Error sending message:', error);
+        }
     };
     
-    const markConversationAsRead = (conversationId: string) => {
+    const markConversationAsRead = async (conversationId: string) => {
         if (!currentUser) return;
-        const userId = currentUser.id;
+        
+        // conversationId is "id1-id2". Find the other user ID.
+        const ids = conversationId.split('-');
+        const otherId = ids.find(id => id !== currentUser.id);
+        
+        if (!otherId) return;
 
-        setChatHistory(prev => {
-            const newHistory = { ...prev };
-            const conversation = newHistory[conversationId] || [];
-            let changed = false;
-            const updatedConversation = conversation.map(msg => {
-                if (!msg.readBy.includes(userId)) {
-                    changed = true;
-                    return { ...msg, readBy: [...msg.readBy, userId] };
-                }
-                return msg;
-            });
+        // Mark all messages from the other user to me as read
+        const { error } = await supabase
+            .from('messages')
+            .update({ is_read: true })
+            .eq('sender_id', otherId)
+            .eq('recipient_id', currentUser.id)
+            .eq('is_read', false);
 
-            if(changed) {
-                newHistory[conversationId] = updatedConversation;
-                return newHistory;
-            }
-            return prev;
-        });
+        if (error) console.error('Error marking read:', error);
     };
 
     const unreadInfo = useMemo(() => {
         if (!currentUser) return { total: 0 };
         let totalUnread = 0;
         Object.values(chatHistory).forEach(conversation => {
-            // FIX: Add type guard to ensure 'conversation' is an array before iterating over it.
             if (Array.isArray(conversation)) {
                 conversation.forEach(msg => {
                     if (
@@ -171,8 +271,18 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         return { total: totalUnread };
     }, [chatHistory, currentUser]);
 
-
-    const value = { users, currentUser, setCurrentUser, addUser, chatHistory, sendChatMessage, markConversationAsRead, unreadInfo };
+    const value = { 
+        users, 
+        currentUser, 
+        isLoading,
+        login, 
+        register, 
+        logout,
+        chatHistory, 
+        sendChatMessage, 
+        markConversationAsRead, 
+        unreadInfo 
+    };
 
     return <UserContext.Provider value={value}>{children}</UserContext.Provider>;
 };

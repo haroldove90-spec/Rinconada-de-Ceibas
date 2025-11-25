@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Visitor } from '../types';
 import { ShareIcon } from '../components/icons/Icons';
 import Modal from '../components/Modal';
+import { supabase } from '../services/supabaseClient';
 
 const NewVisitorModal: React.FC<{
     isOpen: boolean;
@@ -56,12 +57,6 @@ const NewVisitorModal: React.FC<{
     );
 };
 
-const initialVisitors: Visitor[] = [
-    { id: 'vis1', name: 'Juan Rodríguez (Electricista)', visitDate: 'Hoy, 2:00 PM', accessCode: '84319', qrUrl: 'https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=84319', status: 'pending' },
-    { id: 'vis2', name: 'Familia González', visitDate: 'Ayer, 6:00 PM', accessCode: '12567', qrUrl: 'https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=12567', status: 'departed' },
-    { id: 'vis3', name: 'Servicio de Paquetería', visitDate: 'Antier, 11:00 AM', accessCode: '55832', qrUrl: 'https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=55832', status: 'cancelled' },
-];
-
 const getStatusChip = (status: Visitor['status']) => {
     switch (status) {
         case 'pending':
@@ -72,6 +67,8 @@ const getStatusChip = (status: Visitor['status']) => {
             return <span className="px-2 py-1 text-xs font-semibold text-gray-800 bg-gray-200 rounded-full">Se retiró</span>;
         case 'cancelled':
             return <span className="px-2 py-1 text-xs font-semibold text-red-800 bg-red-200 rounded-full">Cancelado</span>;
+        default:
+            return null;
     }
 };
 
@@ -144,33 +141,73 @@ const VisitorCard: React.FC<{
 };
 
 const AccessView: React.FC = () => {
-    const [visitors, setVisitors] = useState<Visitor[]>(initialVisitors);
+    const [visitors, setVisitors] = useState<Visitor[]>([]);
     const [isNewVisitorModalOpen, setIsNewVisitorModalOpen] = useState(false);
     
-    const handleMarkArrived = (visitorId: string) => {
-        setVisitors(visitors.map(v => 
-            v.id === visitorId ? { ...v, status: 'arrived' } : v
-        ));
+    const fetchVisitors = async () => {
+        const { data, error } = await supabase
+            .from('visitors')
+            .select('*')
+            .order('created_at', { ascending: false });
+
+        if (error) {
+            console.error(error);
+            return;
+        }
+
+        if (data) {
+            const mapped: Visitor[] = data.map((v: any) => ({
+                id: v.id,
+                name: v.name,
+                visitDate: v.visit_date,
+                accessCode: v.access_code,
+                qrUrl: v.qr_url,
+                status: v.status
+            }));
+            setVisitors(mapped);
+        }
     };
 
-    const handleCancelVisit = (visitorId: string) => {
-        setVisitors(visitors.map(v => 
-            v.id === visitorId ? { ...v, status: 'cancelled' } : v
-        ));
+    useEffect(() => {
+        fetchVisitors();
+    }, []);
+
+    const handleMarkArrived = async (visitorId: string) => {
+        const { error } = await supabase
+            .from('visitors')
+            .update({ status: 'arrived' })
+            .eq('id', visitorId);
+        
+        if (!error) fetchVisitors();
     };
 
-    const handleAddVisitor = (name: string, visitDate: string) => {
+    const handleCancelVisit = async (visitorId: string) => {
+        const { error } = await supabase
+            .from('visitors')
+            .update({ status: 'cancelled' })
+            .eq('id', visitorId);
+
+        if (!error) fetchVisitors();
+    };
+
+    const handleAddVisitor = async (name: string, visitDate: string) => {
         const accessCode = Math.floor(10000 + Math.random() * 90000).toString();
-        const newVisitor: Visitor = {
-            id: `vis${Date.now()}`,
-            name,
-            visitDate,
-            accessCode,
-            qrUrl: `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${accessCode}`,
-            status: 'pending',
-        };
-        setVisitors(prev => [newVisitor, ...prev]);
-        setIsNewVisitorModalOpen(false);
+        const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${accessCode}`;
+
+        const { error } = await supabase
+            .from('visitors')
+            .insert([{
+                name,
+                visit_date: visitDate,
+                access_code: accessCode,
+                qr_url: qrUrl,
+                status: 'pending'
+            }]);
+
+        if (!error) {
+            fetchVisitors();
+            setIsNewVisitorModalOpen(false);
+        }
     };
     
     const pendingVisitors = visitors.filter(v => v.status === 'pending');

@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { MaintenanceReport, ReportStatus } from '../types';
 import { useUser } from '../context/UserContext';
 import Modal from '../components/Modal';
+import { supabase } from '../services/supabaseClient';
 
 const NewReportModal: React.FC<{
     isOpen: boolean;
@@ -58,34 +59,6 @@ const NewReportModal: React.FC<{
     );
 };
 
-const initialReports: MaintenanceReport[] = [
-    {
-        id: 'rep1',
-        reporter: { id: 'user3', name: 'Ana Gómez', houseNumber: 25, avatarUrl: 'https://i.pravatar.cc/150?u=ana', role: 'user' },
-        category: 'Alumbrado Público',
-        description: 'La lámpara del poste frente a la casa 28 está parpadeando desde anoche.',
-        status: ReportStatus.Reported,
-        timestamp: 'Hace 5 horas'
-    },
-    {
-        id: 'rep2',
-        reporter: { id: 'user2', name: 'Carlos Pérez', houseNumber: 12, avatarUrl: 'https://i.pravatar.cc/150?u=carlos', role: 'user' },
-        category: 'Seguridad',
-        description: 'La puerta de acceso peatonal no cierra automáticamente. Hay que jalarla fuerte.',
-        imageUrl: 'https://picsum.photos/seed/gate/400/300',
-        status: ReportStatus.InProgress,
-        timestamp: 'Hace 2 días'
-    },
-    {
-        id: 'rep3',
-        reporter: { id: 'user3', name: 'Ana Gómez', houseNumber: 25, avatarUrl: 'https://i.pravatar.cc/150?u=ana', role: 'user' },
-        category: 'Jardinería',
-        description: 'Se regó la manguera principal del jardín central.',
-        status: ReportStatus.Resolved,
-        timestamp: 'La semana pasada'
-    },
-];
-
 const getStatusChip = (status: ReportStatus) => {
     switch (status) {
         case ReportStatus.Reported:
@@ -94,6 +67,8 @@ const getStatusChip = (status: ReportStatus) => {
             return <span className="px-2 py-1 text-xs font-semibold text-teal-800 bg-teal-200 rounded-full">{status}</span>;
         case ReportStatus.Resolved:
             return <span className="px-2 py-1 text-xs font-semibold text-green-800 bg-green-200 rounded-full">{status}</span>;
+        default:
+            return <span className="px-2 py-1 text-xs font-semibold text-gray-800 bg-gray-200 rounded-full">{status}</span>;
     }
 };
 
@@ -126,30 +101,73 @@ const ReportCard: React.FC<{ report: MaintenanceReport; onResolveReport: (id: st
 };
 
 const ReportsView: React.FC = () => {
-    const [reports, setReports] = useState<MaintenanceReport[]>(initialReports);
+    const [reports, setReports] = useState<MaintenanceReport[]>([]);
     const { currentUser } = useUser();
     const [isNewReportModalOpen, setIsNewReportModalOpen] = useState(false);
 
-    const handleResolveReport = (reportId: string) => {
-        setReports(reports.map(report => 
-            report.id === reportId 
-            ? { ...report, status: ReportStatus.Resolved } 
-            : report
-        ));
+    const fetchReports = async () => {
+        const { data, error } = await supabase
+            .from('maintenance_reports')
+            .select(`
+                *,
+                reporter:reporter_id(id, name, house_number, avatar_url, role)
+            `)
+            .order('created_at', { ascending: false });
+        
+        if (error) {
+            console.error(error);
+            return;
+        }
+
+        if (data) {
+            const mapped: MaintenanceReport[] = data.map((r: any) => ({
+                id: r.id,
+                category: r.category,
+                description: r.description,
+                status: r.status as ReportStatus,
+                imageUrl: r.image_url,
+                timestamp: new Date(r.created_at).toLocaleString(),
+                reporter: {
+                     id: r.reporter.id,
+                     name: r.reporter.name,
+                     houseNumber: r.reporter.house_number,
+                     avatarUrl: r.reporter.avatar_url,
+                     role: r.reporter.role
+                }
+            }));
+            setReports(mapped);
+        }
     };
 
-    const handleAddReport = (category: string, description: string) => {
+    useEffect(() => {
+        fetchReports();
+    }, []);
+
+    const handleResolveReport = async (reportId: string) => {
+        const { error } = await supabase
+            .from('maintenance_reports')
+            .update({ status: ReportStatus.Resolved })
+            .eq('id', reportId);
+
+        if (!error) fetchReports();
+    };
+
+    const handleAddReport = async (category: string, description: string) => {
         if (!currentUser) return;
-        const newReport: MaintenanceReport = {
-            id: `rep${Date.now()}`,
-            reporter: currentUser,
-            category,
-            description,
-            status: ReportStatus.Reported,
-            timestamp: 'Ahora mismo',
-        };
-        setReports(prev => [newReport, ...prev]);
-        setIsNewReportModalOpen(false);
+        
+        const { error } = await supabase
+            .from('maintenance_reports')
+            .insert([{
+                reporter_id: currentUser.id,
+                category,
+                description,
+                status: ReportStatus.Reported
+            }]);
+
+        if (!error) {
+            fetchReports();
+            setIsNewReportModalOpen(false);
+        }
     };
 
     return (

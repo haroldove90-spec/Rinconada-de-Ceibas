@@ -9,7 +9,7 @@ import AccessView from './views/AccessView';
 import DirectoryView from './views/DirectoryView';
 import FloatingChatButton from './components/FloatingChatButton';
 import ChatModal from './components/ChatModal';
-import RegistrationModal from './components/RegistrationModal';
+import AuthModal from './components/RegistrationModal'; // Using the file we updated, even if named RegistrationModal, content is Auth
 import Modal from './components/Modal';
 import { useUser } from './context/UserContext';
 
@@ -94,8 +94,9 @@ const App: React.FC = () => {
   const [activeView, setActiveView] = useState<View>(View.Home);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [chatRecipient, setChatRecipient] = useState<User | null>(null);
-  const [isRegistrationOpen, setIsRegistrationOpen] = useState(false);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isChatListOpen, setIsChatListOpen] = useState(false);
+  const { currentUser, isLoading } = useUser();
 
   const handleOpenChat = useCallback((recipient: User) => {
     setChatRecipient(recipient);
@@ -113,6 +114,25 @@ const App: React.FC = () => {
   }, [handleOpenChat]);
 
   const renderView = useCallback(() => {
+    if (isLoading) return <div className="flex h-full items-center justify-center pt-20 text-gray-500">Cargando...</div>;
+    
+    if (!currentUser) {
+        return (
+            <div className="flex flex-col items-center justify-center h-full pt-20 text-center px-4">
+                <div className="bg-white p-8 rounded-xl shadow-lg max-w-md w-full">
+                    <h2 className="text-2xl font-bold text-primary mb-4">Bienvenido a Rinconada de Ceibas</h2>
+                    <p className="text-gray-600 mb-6">Por favor, inicia sesión o regístrate para acceder a la comunidad, ver paquetes, reportar problemas y contactar a tus vecinos.</p>
+                    <button 
+                        onClick={() => setIsAuthModalOpen(true)}
+                        className="w-full bg-primary text-white font-bold py-3 px-4 rounded-lg hover:bg-primary-focus transition shadow-md"
+                    >
+                        Ingresar a la App
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
     switch (activeView) {
       case View.Home:
         return <HomeView />;
@@ -127,16 +147,17 @@ const App: React.FC = () => {
       default:
         return <HomeView />;
     }
-  }, [activeView, handleOpenChat]);
+  }, [activeView, handleOpenChat, currentUser, isLoading]);
 
   return (
     <div className="bg-light min-h-screen font-sans flex flex-col">
-      <Header onOpenRegistration={() => setIsRegistrationOpen(true)} />
+      <Header onOpenRegistration={() => setIsAuthModalOpen(true)} />
       <main className="flex-grow container py-4 pb-24">
         {renderView()}
       </main>
-      <BottomNav activeView={activeView} setActiveView={setActiveView} />
-      <FloatingChatButton onClick={() => setIsChatListOpen(true)} />
+      {currentUser && <BottomNav activeView={activeView} setActiveView={setActiveView} />}
+      {currentUser && <FloatingChatButton onClick={() => setIsChatListOpen(true)} />}
+      
        <ChatListViewModal
           isOpen={isChatListOpen}
           onClose={() => setIsChatListOpen(false)}
@@ -149,9 +170,9 @@ const App: React.FC = () => {
             recipient={chatRecipient}
           />
       )}
-      <RegistrationModal
-        isOpen={isRegistrationOpen}
-        onClose={() => setIsRegistrationOpen(false)}
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
       />
     </div>
   );

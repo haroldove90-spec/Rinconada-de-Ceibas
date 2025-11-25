@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { PackageRequest, PackageRequestStatus } from '../types';
 import { useUser } from '../context/UserContext';
 import Modal from '../components/Modal';
+import { supabase } from '../services/supabaseClient';
 
 const NewPackageRequestModal: React.FC<{
     isOpen: boolean;
@@ -56,13 +57,6 @@ const NewPackageRequestModal: React.FC<{
     );
 };
 
-const initialRequests: PackageRequest[] = [
-    { id: 'pkg1', requester: { id: 'user2', name: 'Carlos Pérez', houseNumber: 12, avatarUrl: 'https://i.pravatar.cc/150?u=carlos', role: 'user' }, carrier: 'Amazon', deliveryTime: 'Hoy, 3-5 PM', status: PackageRequestStatus.Pending },
-    { id: 'pkg2', requester: { id: 'user4', name: 'Luisa Torres', houseNumber: 8, avatarUrl: 'https://i.pravatar.cc/150?u=luisa', role: 'user' }, carrier: 'Mercado Libre', deliveryTime: 'Mañana, 10 AM', status: PackageRequestStatus.Accepted, helper: { id: 'user3', name: 'Ana Gómez', houseNumber: 25, avatarUrl: 'https://i.pravatar.cc/150?u=ana', role: 'user' } },
-    { id: 'pkg3', requester: { id: 'user3', name: 'Ana Gómez', houseNumber: 25, avatarUrl: 'https://i.pravatar.cc/150?u=ana', role: 'user' }, carrier: 'Estafeta', deliveryTime: 'Ayer', status: PackageRequestStatus.Completed, helper: { id: 'user2', name: 'Carlos Pérez', houseNumber: 12, avatarUrl: 'https://i.pravatar.cc/150?u=carlos', role: 'user' } },
-    { id: 'pkg4', requester: { id: 'user3', name: 'Ana Gómez', houseNumber: 25, avatarUrl: 'https://i.pravatar.cc/150?u=ana', role: 'user' }, carrier: 'DHL', deliveryTime: 'Hoy, 12-2 PM', status: PackageRequestStatus.Accepted, helper: { id: 'user4', name: 'Luisa Torres', houseNumber: 8, avatarUrl: 'https://i.pravatar.cc/150?u=luisa', role: 'user' } },
-];
-
 const getStatusChip = (status: PackageRequestStatus) => {
     switch (status) {
         case PackageRequestStatus.Pending:
@@ -71,6 +65,8 @@ const getStatusChip = (status: PackageRequestStatus) => {
             return <span className="px-2 py-1 text-xs font-semibold text-teal-800 bg-teal-200 rounded-full">{status}</span>;
         case PackageRequestStatus.Completed:
             return <span className="px-2 py-1 text-xs font-semibold text-green-800 bg-green-200 rounded-full">{status}</span>;
+        default: 
+            return <span className="px-2 py-1 text-xs font-semibold text-gray-800 bg-gray-200 rounded-full">{status}</span>;
     }
 };
 
@@ -110,40 +106,93 @@ const PackageRequestCard: React.FC<{
 
 const PackagesView: React.FC = () => {
     const [activeTab, setActiveTab] = useState<'requests' | 'help'>('requests');
-    const [requests, setRequests] = useState<PackageRequest[]>(initialRequests);
+    const [requests, setRequests] = useState<PackageRequest[]>([]);
     const [isNewRequestModalOpen, setIsNewRequestModalOpen] = useState(false);
     const { currentUser } = useUser();
+
+    const fetchRequests = async () => {
+        const { data, error } = await supabase
+            .from('packages')
+            .select(`
+                *,
+                requester:requester_id(id, name, house_number, avatar_url, role),
+                helper:helper_id(id, name, house_number, avatar_url, role)
+            `)
+            .order('created_at', { ascending: false });
+        
+        if (error) {
+            console.error(error);
+            return;
+        }
+
+        if (data) {
+            const mapped: PackageRequest[] = data.map((r: any) => ({
+                id: r.id,
+                carrier: r.carrier,
+                deliveryTime: r.delivery_time,
+                status: r.status as PackageRequestStatus,
+                requester: {
+                    id: r.requester.id,
+                    name: r.requester.name,
+                    houseNumber: r.requester.house_number,
+                    avatarUrl: r.requester.avatar_url,
+                    role: r.requester.role
+                },
+                helper: r.helper ? {
+                    id: r.helper.id,
+                    name: r.helper.name,
+                    houseNumber: r.helper.house_number,
+                    avatarUrl: r.helper.avatar_url,
+                    role: r.helper.role
+                } : undefined
+            }));
+            setRequests(mapped);
+        }
+    };
+
+    useEffect(() => {
+        fetchRequests();
+    }, []);
 
     if (!currentUser) {
         return <div>Cargando...</div>;
     }
 
-    const handleOfferHelp = (requestId: string) => {
-        setRequests(requests.map(req => 
-            req.id === requestId 
-            ? { ...req, status: PackageRequestStatus.Accepted, helper: currentUser }
-            : req
-        ));
+    const handleOfferHelp = async (requestId: string) => {
+        const { error } = await supabase
+            .from('packages')
+            .update({ 
+                status: PackageRequestStatus.Accepted,
+                helper_id: currentUser.id
+            })
+            .eq('id', requestId);
+            
+        if (!error) fetchRequests();
     };
 
-    const handleCompleteRequest = (requestId: string) => {
-        setRequests(requests.map(req => 
-            req.id === requestId
-            ? { ...req, status: PackageRequestStatus.Completed }
-            : req
-        ));
+    const handleCompleteRequest = async (requestId: string) => {
+        const { error } = await supabase
+            .from('packages')
+            .update({ status: PackageRequestStatus.Completed })
+            .eq('id', requestId);
+
+        if (!error) fetchRequests();
     };
     
-    const handleAddRequest = (carrier: string, deliveryTime: string) => {
-        const newRequest: PackageRequest = {
-            id: `pkg${Date.now()}`,
-            requester: currentUser,
-            carrier,
-            deliveryTime,
-            status: PackageRequestStatus.Pending,
-        };
-        setRequests(prev => [newRequest, ...prev]);
-        setIsNewRequestModalOpen(false);
+    const handleAddRequest = async (carrier: string, deliveryTime: string) => {
+        const { error } = await supabase
+            .from('packages')
+            .insert([{
+                requester_id: currentUser.id,
+                carrier,
+                delivery_time: deliveryTime,
+                status: PackageRequestStatus.Pending
+            }]);
+
+        if (!error) {
+            fetchRequests();
+            setIsNewRequestModalOpen(false);
+        }
     };
 
     const myRequests = requests.filter(r => r.requester.id === currentUser.id);
